@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fb.h>
-/*=============================================*/
+
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 #ifdef CONFIG_TOUCHSCREEN_SWEEP2WAKE
 #include <linux/input/sweep2wake.h>
@@ -37,7 +37,7 @@
 #include <linux/input/doubletap2wake.h>
 #endif
 #endif
-/*=============================================*/
+
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -332,13 +332,15 @@ static int tpd_remove(struct platform_device *pdev);
 #ifndef CONFIG_HAS_EARLYSUSPEND
 static int tpd_suspend_flag = 0;
 #endif
-/* =========================================== */
+
+extern void tpd_suspend(struct early_suspend *h);
+extern void tpd_resume(struct early_suspend *h);
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 #include <cust_eint.h>
 void (*nyx_suspend) (struct early_suspend *h);
 void (*nyx_resume) (struct early_suspend *h);
 #endif
-/* ========================================== */
+
 extern void tpd_button_init(void);
 
 /* int tpd_load_status = 0; //0: failed, 1: sucess */
