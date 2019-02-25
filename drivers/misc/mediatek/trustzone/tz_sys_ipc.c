@@ -15,7 +15,7 @@
 TZ_RESULT KREE_ServMutexCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *out;
+    u32 *out;
     
     mutex = kmalloc (sizeof (struct mutex), GFP_KERNEL);
     if (mutex == NULL)
@@ -25,8 +25,8 @@ TZ_RESULT KREE_ServMutexCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
     
     mutex_init (mutex);
 
-    out = (unsigned long *) &param[0];
-    *out = (unsigned long) mutex;
+    out = (u32 *) &param[0];
+    *out = (u32) mutex;
     
     return TZ_RESULT_SUCCESS;
 }
@@ -34,9 +34,9 @@ TZ_RESULT KREE_ServMutexCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServMutexDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     mutex = (struct mutex *) *in;
     
     kfree (mutex);
@@ -47,9 +47,9 @@ TZ_RESULT KREE_ServMutexDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServMutexLock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     mutex = (struct mutex *) *in;
 
     mutex_lock (mutex);
@@ -60,9 +60,9 @@ TZ_RESULT KREE_ServMutexLock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServMutexUnlock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     mutex = (struct mutex *) *in;
 
     mutex_unlock (mutex);
@@ -73,11 +73,11 @@ TZ_RESULT KREE_ServMutexUnlock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServMutexTrylock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *in;
+    u32 *in;
     int *out;
     int ret;
 
-    in = (unsigned long *) &param[0];    
+    in = (u32 *) &param[0];    
     mutex = (struct mutex *) *in;
 
     ret = mutex_trylock (mutex);
@@ -91,11 +91,11 @@ TZ_RESULT KREE_ServMutexTrylock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServMutexIslock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct mutex *mutex;
-    unsigned long *in;
+    u32 *in;
     int *out;
     int ret;
 
-    in = (unsigned long *) &param[0];    
+    in = (u32 *) &param[0];    
     mutex = (struct mutex *) *in;
 
     ret = mutex_is_locked (mutex);
@@ -112,7 +112,7 @@ TZ_RESULT KREE_ServMutexIslock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServSemaphoreCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *out;
+    u32 *out;
     int *val;
     
     val = (int *) &param[0];
@@ -125,8 +125,8 @@ TZ_RESULT KREE_ServSemaphoreCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
     
     sema_init (sema, *val);
 
-    out = (unsigned long *) &param[0];
-    *out = (unsigned long) sema;
+    out = (u32 *) &param[0];
+    *out = (u32) sema;
     
     return TZ_RESULT_SUCCESS;
 }
@@ -134,9 +134,9 @@ TZ_RESULT KREE_ServSemaphoreCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServSemaphoreDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     sema = (struct semaphore *) *in;
     
     kfree (sema);
@@ -147,9 +147,9 @@ TZ_RESULT KREE_ServSemaphoreDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServSemaphoreDown (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     sema = (struct semaphore *) *in;
 
     down (sema);
@@ -157,30 +157,15 @@ TZ_RESULT KREE_ServSemaphoreDown (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
     return TZ_RESULT_SUCCESS;
 }
 
-TZ_RESULT KREE_ServSemaphoreDownInterruptible(u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
-{
-        struct semaphore *sema;
-        unsigned long *in;
-        int *out;
-
-        in = (unsigned long *)&param[0];
-        sema = (struct semaphore *)*in;
-        out = (int *)&param[0];
-
-        *out = down_interruptible(sema);
-
-        return TZ_RESULT_SUCCESS;
-}
-
 TZ_RESULT KREE_ServSemaphoreDownTimeout (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *in;
+    u32 *in;
     long jiffies;
     int *out;
     int ret;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     sema = (struct semaphore *) in[0];
     jiffies = (long) in[1];
 
@@ -195,11 +180,11 @@ TZ_RESULT KREE_ServSemaphoreDownTimeout (u32 op, u8 param[REE_SERVICE_BUFFER_SIZ
 TZ_RESULT KREE_ServSemaphoreDowntrylock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *in;
+    u32 *in;
     int *out;
     int ret;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     sema = (struct semaphore *) *in;
 
     ret = down_trylock (sema);
@@ -213,9 +198,9 @@ TZ_RESULT KREE_ServSemaphoreDowntrylock (u32 op, u8 param[REE_SERVICE_BUFFER_SIZ
 TZ_RESULT KREE_ServSemaphoreUp (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     struct semaphore *sema;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     sema = (struct semaphore *) *in;
 
     up (sema);
@@ -229,7 +214,7 @@ TZ_RESULT KREE_ServSemaphoreUp (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServWaitqCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     wait_queue_head_t *q;
-    unsigned long *out;
+    u32 *out;
     
     q = kmalloc (sizeof (wait_queue_head_t), GFP_KERNEL);
     if (q == NULL)
@@ -239,8 +224,8 @@ TZ_RESULT KREE_ServWaitqCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
     
     init_waitqueue_head (q);
 
-    out = (unsigned long *) &param[0];
-    *out = (unsigned long) q;
+    out = (u32 *) &param[0];
+    *out = (u32) q;
     
     return TZ_RESULT_SUCCESS;
 }
@@ -248,9 +233,9 @@ TZ_RESULT KREE_ServWaitqCreate (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServWaitqDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     wait_queue_head_t *q;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     q = (wait_queue_head_t *) *in;
     
     kfree (q);
@@ -261,10 +246,10 @@ TZ_RESULT KREE_ServWaitqDestroy (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServWaitqWaitevent (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     wait_queue_head_t *q;
-    unsigned long *in;
-    unsigned long condition;
+    u32 *in;
+    u32 condition;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     q = (wait_queue_head_t *) in[0];
     condition = in[1];    
 
@@ -276,13 +261,13 @@ TZ_RESULT KREE_ServWaitqWaitevent (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 TZ_RESULT KREE_ServWaitqWaiteventTimeout (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     wait_queue_head_t *q;
-    unsigned long *in;
-    unsigned long condition;
+    u32 *in;
+    u32 condition;
     long timeout;
     int *out;
     int ret;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     q = (wait_queue_head_t *) in[0];
     condition = in[1];  
     timeout = (long) in[2]; 
@@ -298,9 +283,9 @@ TZ_RESULT KREE_ServWaitqWaiteventTimeout (u32 op, u8 param[REE_SERVICE_BUFFER_SI
 TZ_RESULT KREE_ServWaitqWakeup (u32 op, u8 param[REE_SERVICE_BUFFER_SIZE])
 {
     wait_queue_head_t *q;
-    unsigned long *in;
+    u32 *in;
     
-    in = (unsigned long *) &param[0];
+    in = (u32 *) &param[0];
     q = (wait_queue_head_t *) in[0];   
 
     wake_up (q);

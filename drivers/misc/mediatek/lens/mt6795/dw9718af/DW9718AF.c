@@ -17,7 +17,7 @@
 #include <linux/compat.h>
 #endif
 
-
+// in K2, main=3, sub=main2=1
 #define LENS_I2C_BUSNUM 0
 static struct i2c_board_info kd_lens_dev __initdata = { I2C_BOARD_INFO("DW9718AF", 0x18) };
 
@@ -289,20 +289,14 @@ static int DW9718AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 {
 	DW9718AFDB("[DW9718AF] DW9718AF_Release - Start\n");
 
-    if (g_s4DW9718AF_Opened == 2) 
-    {
-		g_sr = 5;
-	}
-
 	if (g_s4DW9718AF_Opened) {
 		DW9718AFDB("[DW9718AF] feee\n");
-        
+		g_sr = 5;
 		spin_lock(&g_DW9718AF_SpinLock);
 		g_s4DW9718AF_Opened = 0;
 		spin_unlock(&g_DW9718AF_SpinLock);
 
 	}
-    
 	DW9718AFDB("[DW9718AF] DW9718AF_Release - End\n");
 
 	return 0;

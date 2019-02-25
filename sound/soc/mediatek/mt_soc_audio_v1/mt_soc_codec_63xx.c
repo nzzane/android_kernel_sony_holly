@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
- * Copyright (C) 2015 Foxconn International Holdings, Ltd. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@
 #endif
 
 #include "mt_soc_pcm_common.h"
-
+#include <mach/mt_gpio.h>
 //#define VOW_TONE_TEST
 
 #ifndef CONFIG_MTK_FPGA
@@ -138,7 +138,8 @@ static int mAudio_Vow_Analog_Func_Enable = false;
 static int mAudio_Vow_Digital_Func_Enable = false;
 static int TrimOffset = 2048;
 //static const int DC1unit_in_uv = 21576*2; // in uv
-static const int DC1unit_in_uv = 19184; // in uv with 0DB
+//static const int DC1unit_in_uv = 19184 ; // in uv with 0DB
+static const int DC1unit_in_uv = 17265 ; // in uv with 0DB
 static const int DC1devider = 8; // in uv
 
 #ifdef CONFIG_MTK_SPEAKER
@@ -158,20 +159,6 @@ static int reg_AFE_VOW_CFG2 = 0x2424;   //VOW A/B value
 static int reg_AFE_VOW_CFG3 = 0x8767;   //VOW alpha/beta value
 static int reg_AFE_VOW_CFG4 = 0x000c;   //VOW ADC test config
 static int reg_AFE_VOW_CFG5 = 0x0000;   //N min value
-
-/* MM-NC-Headset_Gain-00-[+ */
-// Move to here from below
-static const char *DAC_DL_PGA_Headset_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db", "3Db", "2Db", "1Db", "0Db", "-1Db", "-2Db", "-3Db",
-                                                "-4Db", "-5Db", "-6Db", "-7Db", "-8Db", "-9Db", "-10Db" , "-40Db"
-                                               };
-static const char *DAC_DL_PGA_Handset_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db", "3Db", "2Db", "1Db", "0Db", "-1Db", "-2Db", "-3Db",
-                                                "-4Db", "-5Db", "-6Db", "-7Db", "-8Db", "-9Db", "-10Db" , "-40Db"
-                                               };
-
-static const char *DAC_DL_PGA_Speaker_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db", "3Db", "2Db", "1Db", "0Db", "-1Db", "-2Db", "-3Db",
-                                                "-4Db", "-5Db", "-6Db", "-7Db", "-8Db", "-9Db", "-10Db" , "-40Db"
-                                               };
-/* MM-NC-Headset_Gain-00-]- */
 
 static void  SavePowerState(void)
 {
@@ -476,7 +463,7 @@ static void LowPowerAdcClockEnable(bool enable)
 #ifdef CONFIG_MTK_SPEAKER
 static void Apply_Speaker_Gain(void)
 {
-	Ana_Set_Reg(SPK_CON9, Speaker_pga_gain << 8, 0xf << 8);
+    Ana_Set_Reg(SPK_CON9,  Speaker_pga_gain << 8, 0xf << 8);
 }
 #else
 static void Apply_Speaker_Gain(void)
@@ -1374,17 +1361,6 @@ static struct snd_soc_dai_driver mtk_6331_dai_codecs[] =
             .formats = SND_SOC_ADV_MT_FMTS,
         },
     },
-	{
-		.name = MT_SOC_CODEC_TXDAI2_NAME,
-		.ops = &mt6323_aif1_dai_ops,
-		.playback = {
-			.stream_name = MT_SOC_DL2_STREAM_NAME,
-			.channels_min = 1,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_192000,
-			.formats = SND_SOC_ADV_MT_FMTS,
-		},
-	},
 };
 
 
@@ -1473,12 +1449,14 @@ static void TurnOffDacPower(void)
 {
     printk("TurnOffDacPower\n");
 
-	Ana_Set_Reg(AFE_DL_SRC2_CON0_L, 0x0000, 0xffff); /*bit0, Turn off down-link*/
-	if (GetAdcStatus() == false)
-		Ana_Set_Reg(AFE_UL_DL_CON0, 0x0000, 0xffff); /*turn off afe*/
-	udelay(250);
+    Ana_Set_Reg(AFE_DL_SRC2_CON0_L , 0x0000 , 0xffff); //bit0, Turn off down-link
+    if (GetAdcStatus() == false)
+    {
+        Ana_Set_Reg(AFE_UL_DL_CON0, 0x0000, 0xffff);   //turn off afe
+    }
+    udelay(250);
 
-	Ana_Set_Reg(AFE_AUDIO_TOP_CON0, 0x0040, 0x0040); /*down-link power down*/
+    Ana_Set_Reg(AFE_AUDIO_TOP_CON0, 0x0040, 0x0040); //down-link power down
 
     Ana_Set_Reg(AFE_CLASSH_CFG1, 0x24, 0xffff);
     Ana_Set_Reg(AFE_CLASSH_CFG0, 0xd518, 0xffff); // ClassH off
@@ -1530,19 +1508,11 @@ static void HeadsetVoloumeSet(void)
     oldindex = 8;
     if(index  > oldindex)
     {
-        int new_index = 0;  /* MM-NC-Headset_Gain-00 */
         printk("index = %d oldindex = %d \n",index,oldindex);
         offset = index - oldindex;
         while(offset >0)
         {
-/* MM-NC-Headset_Gain-00-[+ */
-            new_index = oldindex + count;
-            if (new_index == (ARRAY_SIZE(DAC_DL_PGA_Headset_GAIN) - 1)) {
-                new_index = 0x1f;
-            }
-            Ana_Set_Reg(ZCD_CON2, (new_index << 7)|new_index , 0xf9f);
-/*            Ana_Set_Reg(ZCD_CON2, ((oldindex + count)<<7 )|(oldindex + count) , 0xf9f); */
-/* MM-NC-Headset_Gain-00-]- */
+            Ana_Set_Reg(ZCD_CON2, ((oldindex + count)<<7 )|(oldindex + count) , 0xf9f);
             offset--;
             count++;
             udelay(200);
@@ -1560,11 +1530,6 @@ static void HeadsetVoloumeSet(void)
             udelay(200);
         }
     }
-/* MM-NC-Headset_Gain-00-[+ */
-    if (index == (ARRAY_SIZE(DAC_DL_PGA_Headset_GAIN) - 1)) {
-        index = 0x1f;
-    }
-/* MM-NC-Headset_Gain-00-]- */
     Ana_Set_Reg(ZCD_CON2, (index << 7) | (index), 0xf9f);
 }
 
@@ -1610,7 +1575,11 @@ static void Audio_Amp_Change(int channels , bool enable)
             Ana_Set_Reg(AUDBUF_CFG0, 0xe147 , 0xffff); // Enable HPR/HPL
             Ana_Set_Reg(AUDBUF_CFG0, 0xE14e , 0xffff); // Enable HPR/HPL
             Ana_Set_Reg(AUDBUF_CFG5, 0x0003, 0x0007); // enable HP bias circuits
+			#ifdef CONFIG_CM865_MAINBOARD
+            Ana_Set_Reg(AUDBUF_CFG1, 0x0100 , 0xffff); // Disable pre-charge buffer
+			#else
             Ana_Set_Reg(AUDBUF_CFG1, 0x0900 , 0xffff); // Disable pre-charge buffer
+			#endif
             Ana_Set_Reg(AUDBUF_CFG2, 0x0020 , 0xffff); // Disable De_OSC of voice
             Ana_Set_Reg(AUDLDO_NVREG_CFG0,   0x0068, 0xffff);//Disable AU_REFN short circuit
 
@@ -1805,6 +1774,27 @@ static void Speaker_Amp_Change(bool enable)
             TurnOnDacPower();
         }
         printk("turn on Speaker_Amp_Change \n");
+            mt_set_gpio_dir(GPIO_SPEAKER_EN_PIN,GPIO_DIR_OUT); // output
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // high
+    msleep(10); 
+   mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+       mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+
         // here pmic analog control
         //Ana_Set_Reg(AUDNVREGGLB_CFG0  , 0x0000 , 0xffffffff);
         OpenClassAB();
@@ -1821,10 +1811,7 @@ static void Speaker_Amp_Change(bool enable)
         SetDcCompenSation();
         Ana_Set_Reg(AUDBUF_CFG6  , 0x00E8 , 0xffffffff); //Switch LO MUX to audio DAC
         Ana_Set_Reg(AUDBUF_CFG6  , 0x00EB , 0xffffffff); //Enable LOR/LOL
-/* MM-NC-ClearAudioPlus-00-[+ */
-/*        Ana_Set_Reg(ZCD_CON1  , 0x0489 , 0xffffffff); // Set LOR/LOL gain as 0dB */
-        Ana_Set_Reg(ZCD_CON1  ,  (mCodec_data->mAudio_Ana_Volume[AUDIO_ANALOG_VOLUME_SPKR] << 7) | mCodec_data->mAudio_Ana_Volume[AUDIO_ANALOG_VOLUME_SPKL], 0xffffffff);
-/* MM-NC-ClearAudioPlus-00-]- */
+        Ana_Set_Reg(ZCD_CON1  , 0x0489 , 0xffffffff); // Set LOR/LOL gain as 0dB
 #ifdef CONFIG_MTK_SPEAKER
         if (Speaker_mode == AUDIO_SPEAKER_MODE_D)
         {
@@ -1840,10 +1827,13 @@ static void Speaker_Amp_Change(bool enable)
         }
 #endif
         Apply_Speaker_Gain();
+ 	msleep(100); //dengbing add 增加这一句延时 
     }
     else
     {
-        printk("turn off Speaker_Amp_Change \n");
+        printk("turn off1 Speaker_Amp_Change \n");
+    mt_set_gpio_dir(GPIO_SPEAKER_EN_PIN,GPIO_DIR_OUT); // output
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // high
 #ifdef CONFIG_MTK_SPEAKER
         if (Speaker_mode == AUDIO_SPEAKER_MODE_D)
         {
@@ -1907,6 +1897,29 @@ static void Headset_Speaker_Amp_Change(bool enable)
             TurnOnDacPower();
         }
         printk("turn on Speaker_Amp_Change \n");
+		//add by dingyin 0714
+		//printk("turn on Speaker_Amp_Change \n");
+            mt_set_gpio_dir(GPIO_SPEAKER_EN_PIN,GPIO_DIR_OUT); // output
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // high
+    msleep(10); 
+   mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+       mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+ udelay(2);
+      mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // low
+ udelay(2);
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ONE); // high
+    //end by dingyin 0714
         // here pmic analog control
         //Ana_Set_Reg(AUDNVREGGLB_CFG0  , 0x0000 , 0xffffffff);
         OpenClassAB();
@@ -1921,12 +1934,7 @@ static void Headset_Speaker_Amp_Change(bool enable)
 
         Ana_Set_Reg(IBIASDIST_CFG0  , 0x0092 , 0xffffffff); // Enable IBIST
         Ana_Set_Reg(ZCD_CON2  , 0x0489 , 0xffffffff); // Set LOR/LOL gain as minimum (~ -40dB)
-/* MM-NC-ClearAudioPlus-00-[+ */
-/*
         Ana_Set_Reg(ZCD_CON1  , 0x0489 , 0xffffffff); // Set LOR/LOL gain as minimum (~ -40dB)
-*/
-        Ana_Set_Reg(ZCD_CON1  , 0x0F9F , 0xffffffff); // Set LOR/LOL gain as minimum (~ -40dB)
-/* MM-NC-ClearAudioPlus-00-]- */
         Ana_Set_Reg(ZCD_CON3 , 0x001F , 0xffffffff); // Set voice gain as minimum (~ -40dB)
 
         Ana_Set_Reg(AUDBUF_CFG1  , 0x0900 , 0xffffffff); // De_OSC of HP and enable output STBENH
@@ -1941,16 +1949,15 @@ static void Headset_Speaker_Amp_Change(bool enable)
         SetDcCompenSation();
         Ana_Set_Reg(AUDBUF_CFG6  , 0x00E8 , 0xffffffff); //Switch LO MUX to audio DAC
         Ana_Set_Reg(AUDBUF_CFG6  , 0x00EB , 0xffffffff); //Enable LOR/LOL
-/* MM-NC-ClearAudioPlus-00-[+ */
-/*
         Ana_Set_Reg(ZCD_CON1  , 0x0489 , 0xffffffff); // Set LOR/LOL gain as 0dB
-*/
-        Ana_Set_Reg(ZCD_CON1  ,  (mCodec_data->mAudio_Ana_Volume[AUDIO_ANALOG_VOLUME_SPKR] << 7) | mCodec_data->mAudio_Ana_Volume[AUDIO_ANALOG_VOLUME_SPKL], 0xffffffff);
-/* MM-NC-ClearAudioPlus-00-]- */
 
         Ana_Set_Reg(AUDBUF_CFG0  , 0xE0A9 , 0xffffffff); // Switch HP MUX to audio DAC
         Ana_Set_Reg(AUDBUF_CFG0  , 0xE0AF , 0xffffffff); // Enable HPR/HPL
-        Ana_Set_Reg(AUDBUF_CFG1  , 0x0900 , 0xffffffff); // Disable pre-charge buffer
+        #ifdef CONFIG_CM865_MAINBOARD
+        Ana_Set_Reg(AUDBUF_CFG1, 0x0100 , 0xffff); // Disable pre-charge buffer
+		#else
+        Ana_Set_Reg(AUDBUF_CFG1, 0x0900 , 0xffff); // Disable pre-charge buffer
+		#endif
         Ana_Set_Reg(AUDBUF_CFG2  , 0x0020 , 0xffffffff); // Disable De_OSC of voice
         Ana_Set_Reg(AUDBUF_CFG0  , 0xE0AE , 0xffffffff); // Disable voice buffer
         Ana_Set_Reg(AUDBUF_CFG2  , 0x0489 , 0xffffffff); // Set HPR/HPL gain as 0dB
@@ -2003,6 +2010,10 @@ static void Headset_Speaker_Amp_Change(bool enable)
         Ana_Set_Reg(AUDLDO_NVREG_CFG0  , 0x0000 , 0xffff); // Disable cap-less LDOs (1.6V)
 
         printk("turn off Speaker_Amp_Change \n");
+		//add by dingyin 0714
+	mt_set_gpio_dir(GPIO_SPEAKER_EN_PIN,GPIO_DIR_OUT); // output  
+    mt_set_gpio_out(GPIO_SPEAKER_EN_PIN,GPIO_OUT_ZERO); // high
+            //end by dingyin 0714
         if (GetDLStatus() == false)
         {
             Ana_Set_Reg(AFE_DL_SRC2_CON0_L , 0x1800 , 0xffff);
@@ -2043,39 +2054,6 @@ static int Headset_Speaker_Amp_Set(struct snd_kcontrol *kcontrol, struct snd_ctl
     return 0;
 }
 
-/* MM-NC-SpeakerEnable-01-[+ */
-static void Ext_Speaker_Amp_Gpio(bool enable) //disable/enable External AMP GPIO
-{
-    #define SPK_WARM_UP_TIME (25) //unit is ms
-
-    if (enable) {
-        printk("%s ON+ \n", __func__);
-
-        mt_set_gpio_mode(GPIO_EXT_SPKAMP_EN_PIN, GPIO_MODE_00); //GPIO132: GPIO mode
-        mt_set_gpio_pull_enable(GPIO_EXT_SPKAMP_EN_PIN, GPIO_PULL_ENABLE);
-        mt_set_gpio_dir(GPIO_EXT_SPKAMP_EN_PIN, GPIO_DIR_OUT); // output
-        mt_set_gpio_out(GPIO_EXT_SPKAMP_EN_PIN, GPIO_OUT_ZERO); // low disable
-        udelay(1000);
-        mt_set_gpio_dir(GPIO_EXT_SPKAMP_EN_PIN, GPIO_DIR_OUT); // output
-
-        mt_set_gpio_out(GPIO_EXT_SPKAMP_EN_PIN, GPIO_OUT_ONE); // high enable
-
-        msleep(SPK_WARM_UP_TIME);
-
-        printk("%s ON- \n", __func__);
-    } else {
-        printk("%s OFF+ \n", __func__);
-
-        mt_set_gpio_mode(GPIO_EXT_SPKAMP_EN_PIN, GPIO_MODE_00); //GPIO132 GPIO mode
-        mt_set_gpio_dir(GPIO_EXT_SPKAMP_EN_PIN, GPIO_DIR_OUT); // output
-        mt_set_gpio_out(GPIO_EXT_SPKAMP_EN_PIN, GPIO_OUT_ZERO); // low disbale
-        udelay(500);
-
-        printk("%s OFF- \n", __func__);
-    }
-}
-/* MM-NC-SpeakerEnable-01-]- */
-
 static bool Ext_Speaker_Mode = false;
 static int Audio_Ext_Speaker_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2084,11 +2062,11 @@ static int Audio_Ext_Speaker_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_e
     printk("%s Ext_Speaker_Mode = %d",__func__,Ext_Speaker_Mode);
     if(Ext_Speaker_Mode == true) // on
     {
-        Ext_Speaker_Amp_Gpio(true);  /* MM-NC-SpeakerEnable-01 */
+
     }
     else // off
     {
-        Ext_Speaker_Amp_Gpio(false);  /* MM-NC-SpeakerEnable-01 */
+
     }
     return 0;
 }
@@ -2112,10 +2090,9 @@ static const struct snd_kcontrol_new mt_ext_dev_controls[] =
 };
 #ifdef CONFIG_MTK_SPEAKER
 static const char *speaker_amp_function[] = {"CALSSD", "CLASSAB", "RECEIVER"};
-static const char *const speaker_PGA_function[] = {
-	"Mute", "0Db", "4Db", "5Db", "6Db", "7Db", "8Db", "9Db", "10Db",
-	"11Db", "12Db", "13Db", "14Db", "15Db", "16Db", "17Db"
-};
+static const char *speaker_PGA_function[] = {"MUTE", "0Db", "4Db", "5Db", "6Db", "7Db", "8Db", "9Db", "10Db",
+                                             "11Db", "12Db", "13Db", "14Db", "15Db", "16Db", "17Db"
+                                            };
 static const char *speaker_OC_function[] = {"Off", "On"};
 static const char *speaker_CS_function[] = {"Off", "On"};
 static const char *speaker_CSPeakDetecReset_function[] = {"Off", "On"};
@@ -2137,9 +2114,9 @@ static int Audio_Speaker_Class_Get(struct snd_kcontrol *kcontrol,
 
 static int Audio_Speaker_Pga_Gain_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	Speaker_pga_gain = ucontrol->value.integer.value[0];
-	Ana_Set_Reg(SPK_CON9, Speaker_pga_gain << 8, 0xf << 8);
-	return 0;
+    Speaker_pga_gain = ucontrol->value.integer.value[0];
+    Ana_Set_Reg(SPK_CON9,  (Speaker_pga_gain +1)<< 8, 0xf << 8);
+    return 0;
 }
 
 static int Audio_Speaker_OcFlag_Get(struct snd_kcontrol *kcontrol,
@@ -2358,7 +2335,7 @@ int Audio_AuxAdcData_Get_ext(void)
             printk("WAITING FQMTR_CON0[3]\n");
             //Do nothing;
         }
-        //delay 1ms 锛宔nsure Busy =1
+        //delay 1ms ，ensure Busy =1
         // FQMTR_CON0[3] =1?b0 ,wait FQMTR busy bit become to 0
         //Use 32KHz to meter variable 12MHz
         freq_meter_data = Ana_Get_Reg(0x8CD2); // check if [3] becomes to 0
@@ -2606,9 +2583,6 @@ static const char *amp_function[] = {"Off", "On"};
 static const char *aud_clk_buf_function[] = {"Off", "On"};
 
 //static const char *DAC_SampleRate_function[] = {"8000", "11025", "16000", "24000", "32000", "44100", "48000"};
-/* MM-NC-Headset_Gain-00-[+ */
-// Move to above of this file
-/*
 static const char *DAC_DL_PGA_Headset_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db", "3Db", "2Db", "1Db", "0Db", "-1Db", "-2Db", "-3Db",
                                                 "-4Db", "-5Db", "-6Db", "-7Db", "-8Db", "-9Db", "-10Db" , "-40Db"
                                                };
@@ -2619,8 +2593,6 @@ static const char *DAC_DL_PGA_Handset_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db
 static const char *DAC_DL_PGA_Speaker_GAIN[] = {"8Db", "7Db", "6Db", "5Db", "4Db", "3Db", "2Db", "1Db", "0Db", "-1Db", "-2Db", "-3Db",
                                                 "-4Db", "-5Db", "-6Db", "-7Db", "-8Db", "-9Db", "-10Db" , "-40Db"
                                                };
-*/
-/* MM-NC-Headset_Gain-00-]- */
 
 //static const char *Voice_Mux_function[] = {"Voice", "Speaker"};
 
@@ -2676,9 +2648,7 @@ static int Lineout_PGAR_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
     {
         index = 0x1f;
     }
-    /* MM-JC-RGain_mask-00-[+ */
-    Ana_Set_Reg(ZCD_CON1, index << 7 , 0x0f80);
-    /* MM-JC-RGain_mask-00-]+ */
+    Ana_Set_Reg(ZCD_CON1, index << 7 , 0x0f10);
     mCodec_data->mAudio_Ana_Volume[AUDIO_ANALOG_VOLUME_SPKR] = ucontrol->value.integer.value[0];
     return 0;
 }
@@ -5082,7 +5052,11 @@ static int SineTable_DAC_HP_Set(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 
         Ana_Set_Reg(AUDBUF_CFG0, 0xE149 , 0xffff); // Switch HP MUX to audio DAC
         Ana_Set_Reg(AUDBUF_CFG0, 0xE14F , 0xffff); // Enable HPR/HPL
+        #ifdef CONFIG_CM865_MAINBOARD
+        Ana_Set_Reg(AUDBUF_CFG1, 0x0100 , 0xffff); // Disable pre-charge buffer
+		#else
         Ana_Set_Reg(AUDBUF_CFG1, 0x0900 , 0xffff); // Disable pre-charge buffer
+		#endif
         Ana_Set_Reg(AUDBUF_CFG2, 0x0020 , 0xffff); // Disable De_OSC of voice
         Ana_Set_Reg(AUDBUF_CFG0, 0xE14E , 0xffff); // Disable voice buffer
         Ana_Set_Reg(ZCD_CON2,       0x0489 , 0xffff); // Set HPR/HPL gain as 0dB, step by step
@@ -5184,7 +5158,11 @@ static void ADC_LOOP_DAC_Func(int command)
 
             Ana_Set_Reg(AUDBUF_CFG0, 0xE149 , 0xffff); // Switch HP MUX to audio DAC
             Ana_Set_Reg(AUDBUF_CFG0, 0xE14F , 0xffff); // Enable HPR/HPL
+			#ifdef CONFIG_CM865_MAINBOARD
+            Ana_Set_Reg(AUDBUF_CFG1, 0x0100 , 0xffff); // Enable HPR/HPL
+			#else
             Ana_Set_Reg(AUDBUF_CFG1, 0x0900 , 0xffff); // Enable HPR/HPL
+			#endif
             Ana_Set_Reg(AUDBUF_CFG2, 0x0020 , 0xffff); // Enable HPR/HPL
             Ana_Set_Reg(AUDBUF_CFG0, 0xE14E , 0xffff); // Enable HPR/HPL
             Ana_Set_Reg(ZCD_CON2,  0x0489 , 0xffff); // Set HPR/HPL gain as 0dB, step by step
@@ -5372,7 +5350,11 @@ static int Voice_Call_DAC_DAC_HS_Set(struct snd_kcontrol *kcontrol, struct snd_c
 
         Ana_Set_Reg(AUDBUF_CFG0, 0xE010 , 0xffff); // Switch HP MUX to audio DAC
         Ana_Set_Reg(AUDBUF_CFG0, 0xE011 , 0xffff);
+		#ifdef CONFIG_CM865_MAINBOARD
+        Ana_Set_Reg(AUDBUF_CFG1, 0x0100 , 0xffff);
+		#else
         Ana_Set_Reg(AUDBUF_CFG1, 0x0900 , 0xffff);
+		#endif
         Ana_Set_Reg(AUDBUF_CFG2, 0x0020 , 0xffff);
         //Ana_Set_Reg(AUDBUF_CFG0, 0xE146 , 0xffff); // Enable HPR/HPL
         Ana_Set_Reg(ZCD_CON2,  0x0489 , 0xffff); // Set HPR/HPL gain as 0dB, step by step

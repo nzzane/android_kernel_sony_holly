@@ -261,7 +261,7 @@ bool usb_cable_connected(void)
 	{
 		CHARGER_TYPE chg_type = mt_charger_type_detection();
 		os_printk(K_INFO, "%s type=%d\n", __func__, chg_type);
-		if (chg_type == STANDARD_HOST || chg_type == CHARGING_HOST)
+		if (chg_type == STANDARD_HOST)
 			return true;
 	}
 #endif
@@ -319,263 +319,6 @@ static inline struct musb *dev_to_musb(struct device *dev)
 }
 
 const char* const usb_mode_str[CABLE_MODE_MAX] = {"CHRG_ONLY", "NORMAL", "HOST_ONLY"};
-
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling -start
-//
-//---------------------------------------------------
-static bool force_id_polling_on = false;
-static bool id_polling_state = false;
-static unsigned int id_polling_timeout=30000;
-static bool start_id_polling= false;
-
-extern void mtk_xhci_eint_iddig_default(void);
-extern int mtk_xhci_eint_iddig_init(void);
-extern void mtk_xhci_switch_init(void);
-extern void mtk_xhci_eint_iddig_deinit(void);
-
-void somc_chg_usbid_start_polling_delay_work(struct work_struct *work)
-{
-	struct somc_usb_id *usb_id;
-	unsigned long flags;
-
-	os_printk(K_WARNIN, "usbid_start_work\n");
-
-	usb_id = container_of(work, struct somc_usb_id,
-						start_polling_delay.work);
-
-	os_printk(K_WARNIN, "switch gpio to iddig irq\n");
-
-	spin_lock_irqsave(&usb_id->change_irq_lock, flags);
-
-	if (id_polling_state) {
-		spin_unlock_irqrestore(&usb_id->change_irq_lock, flags);
-		return;
-	}
-	id_polling_state = true;
-#if 1
-	mtk_xhci_eint_iddig_init();
-#endif
-	spin_unlock_irqrestore(&usb_id->change_irq_lock, flags);
-	os_printk(K_WARNIN, "usbid_start_work --\n");
-
-}
-
-void somc_chg_usbid_stop_polling_delay_work(struct work_struct *work)
-{
-	struct somc_usb_id *usb_id;
-	unsigned long flags;
-
-	os_printk(K_WARNIN, "usbid_stop_work\n");
-
-	usb_id = container_of(work, struct somc_usb_id,
-						stop_polling_delay.work);
-
-	if (force_id_polling_on) {
-		os_printk(K_WARNIN, "Force ID polling. Does not stop polling\n");
-		goto out;
-	}
-
-	if (mtk_is_host_mode()) {
-		os_printk(K_WARNIN, "USB device is connecting. Wait 3s and re-check\n");
-		schedule_delayed_work_on(0, &usb_id->stop_polling_delay,
-								 msecs_to_jiffies(3000));
-		goto out;
-	}
-
-	/*
-	if (somc_chg_is_usb_present(params->dev)) {
-		//"Now charging. does not stop polling\n"
-		goto out;
-	}
-	*/
-
-	os_printk(K_WARNIN, "switch iddig irq to gpio\n");
-
-	// disable usbid irq
-	cancel_delayed_work_sync(&usb_id->start_polling_delay);
-	spin_lock_irqsave(&usb_id->change_irq_lock, flags);
-
-#if 1
-	mtk_xhci_eint_iddig_deinit();
-	mtk_xhci_eint_iddig_default();
-#endif
-
-	id_polling_state = false;
-	spin_unlock_irqrestore(&usb_id->change_irq_lock, flags);
-out:
-	usb_id->user_request_polling = false;
-	if (usb_id->wakeup_source_id_polling.active)
-		__pm_relax(&usb_id->wakeup_source_id_polling);
-
-	os_printk(K_WARNIN, " usbid_stop_work --\n");
-
-}
-static void somc_chg_usbid_start_polling(struct somc_usb_id *usb_id)
-{
-	os_printk(K_WARNIN, "somc_chg_usbid_start_polling !!\n");
-	schedule_delayed_work_on(0, &usb_id->start_polling_delay, 0);
-
-}
-static void somc_chg_usbid_stop_polling(struct somc_usb_id *usb_id)
-{
-
-	os_printk(K_WARNIN, " somc_chg_usbid_stop_polling !!\n");
-	cancel_delayed_work_sync(&usb_id->stop_polling_delay);
-	schedule_delayed_work_on(0, &usb_id->stop_polling_delay, 0);
-
-}
-
-static int set_start_id_polling(void)
-{
-	int ret=1;
-	struct somc_usb_id *usb_id;
-
-	os_printk(K_INFO, "[MU3D]%s \n", __func__);
-
-	if(_mu3d_musb) {
-		usb_id = &_mu3d_musb->usb_id;
-	}
-	else{
-		os_printk(K_ERR, "not yet initialized\n");
-		return -ENODEV;
-	}
-
-	if (start_id_polling) {
-		if (id_polling_timeout > ID_POLLING_TIMEOUT_MAX)
-			id_polling_timeout = ID_POLLING_TIMEOUT_MAX;
-
-		os_printk(K_WARNIN, "user request polling start\n");
-		cancel_delayed_work_sync(&usb_id->stop_polling_delay);
-
-		schedule_delayed_work_on(0,	&usb_id->stop_polling_delay,
-				msecs_to_jiffies(id_polling_timeout));
-
-		__pm_wakeup_event(&usb_id->wakeup_source_id_polling,
-				(id_polling_timeout +
-					ID_POLLING_WAKE_LOCK_TIMEOUT_EXT));
-
-		usb_id->user_request_polling = true;
-		somc_chg_usbid_start_polling(usb_id);
-	} else {
-		os_printk(K_WARNIN, " user request polling stop !!\n");
-		usb_id->user_request_polling = false;
-		somc_chg_usbid_stop_polling(usb_id);
-	}
-
-	return ret;
-}
-
-ssize_t musb_id_forceon_show(struct device* dev, struct device_attribute *attr, char *buf)
-{
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,force_id_polling_on);
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return 0;
-	}
-	return sprintf(buf, "%d\n", force_id_polling_on);
-}
-ssize_t musb_id_forceon_store(struct device* dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int value;
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,force_id_polling_on);
-
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return count;
-	} else {
-		sscanf(buf, "%d", &value);
-		force_id_polling_on = value;
-	}
-	return count;
-}
-
-ssize_t musb_id_state_show(struct device* dev, struct device_attribute *attr, char *buf)
-{
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_state);
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return 0;
-	}
-	return sprintf(buf, "%d\n", id_polling_state);
-}
-ssize_t musb_id_state_store(struct device* dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int value;
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_state);
-
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return count;
-	} else {
-		sscanf(buf, "%d", &value);
-		id_polling_state = value;
-	}
-	return count;
-}
-
-ssize_t musb_id_timeout_show(struct device* dev, struct device_attribute *attr, char *buf)
-{
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_timeout);
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return 0;
-	}
-	return sprintf(buf, "%d\n", id_polling_timeout);
-}
-ssize_t musb_id_timeout_store(struct device* dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int value;
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_timeout);
-
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return count;
-	} else {
-		sscanf(buf, "%d", &value);
-		id_polling_timeout = value;
-		os_printk(K_INFO, "[MU3D]%s :%d %d\n", __func__,id_polling_timeout,value);
-	}
-	return count;
-}
-
-
-ssize_t start_id_polling_show(struct device* dev, struct device_attribute *attr, char *buf)
-{
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,start_id_polling);
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return 0;
-	}
-	return sprintf(buf, "%d\n", start_id_polling);
-}
-ssize_t start_id_polling_store(struct device* dev, struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,start_id_polling);
-	int value;
-
-	if (!dev) {
-		os_printk(K_ERR, "dev is null!!\n");
-		return count;
-	} else {
-		sscanf(buf, "%d", &value);
-		start_id_polling = value;
-		os_printk(K_INFO, "[MU3D]%s :%d %d\n", __func__,start_id_polling,value);
-		set_start_id_polling();
-	}
-	return count;
-}
-
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling -end
-//
-//---------------------------------------------------
 
 ssize_t musb_cmode_show(struct device* dev, struct device_attribute *attr, char *buf)
 {
@@ -685,7 +428,7 @@ ssize_t musb_tx_show(struct device* dev, struct device_attribute *attr, char *bu
 		return 0;
 	}
 
-	var = U3PhyReadReg8((u3phy_addr_t)(U3D_U2PHYDTM1+0x2));
+	var = U3PhyReadReg8(U3D_U2PHYDTM1+0x2);
 	var2 = (var >> 3) & ~0xFE;
 	printk("[MUSB]addr: 0x6E (TX), value: %x - %x\n", var, var2);
 
@@ -710,7 +453,7 @@ ssize_t musb_tx_store(struct device* dev, struct device_attribute *attr,
 #ifdef CONFIG_MTK_FPGA
 		var = USB_PHY_Read_Register8(U3D_U2PHYDTM1+0x2);
 #else
-        var = U3PhyReadReg8((u3phy_addr_t)(U3D_U2PHYDTM1+0x2));
+        var = U3PhyReadReg8(U3D_U2PHYDTM1+0x2);
 #endif
 
 		if (val == 0) {
@@ -725,7 +468,7 @@ ssize_t musb_tx_store(struct device* dev, struct device_attribute *attr,
 #else
         //U3PhyWriteField32(U3D_USBPHYDTM1+0x2, E60802_RG_USB20_BC11_SW_EN_OFST, E60802_RG_USB20_BC11_SW_EN, 0);
         //Jeremy TODO 0320
-		var = U3PhyReadReg8((u3phy_addr_t)(U3D_U2PHYDTM1+0x2));
+		var = U3PhyReadReg8(U3D_U2PHYDTM1+0x2);
 #endif
 
 		var2 = (var >> 3) & ~0xFE;
@@ -749,7 +492,7 @@ ssize_t musb_rx_show(struct device* dev, struct device_attribute *attr, char *bu
 #ifdef CONFIG_MTK_FPGA
 	var = USB_PHY_Read_Register8(U3D_U2PHYDMON1+0x3);
 #else
-    var = U3PhyReadReg8((u3phy_addr_t)(U3D_U2PHYDMON1+0x3));
+    var = U3PhyReadReg8(U3D_U2PHYDMON1+0x3);
 #endif
 	var2 = (var >> 7) & ~0xFE;
 	printk("[MUSB]addr: U3D_U2PHYDMON1 (0x77) (RX), value: %x - %x\n", var, var2);

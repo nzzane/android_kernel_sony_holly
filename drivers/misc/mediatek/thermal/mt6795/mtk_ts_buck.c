@@ -6,6 +6,7 @@
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 #include <linux/aee.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -34,7 +35,7 @@ static unsigned int cl_dev_sysrst_state = 0;
 static struct thermal_zone_device *thz_dev;
 
 static struct thermal_cooling_device *cl_dev_sysrst;
-static int tsbuck_debug_log = 1;
+static int tsbuck_debug_log = 0;
 static int kernelmode = 0;
 
 static int g_THERMAL_TRIP[10] = {0,0,0,0,0,0,0,0,0,0};
@@ -65,7 +66,7 @@ static int polling_factor2 = 10000;
 #define tsbuck_dprintk(fmt, args...)   \
 do {									\
 	if (tsbuck_debug_log) {				\
-		pr_notice("Power/PMIC_Thermal" fmt, ##args); \
+		xlog_printk(ANDROID_LOG_INFO, "Power/PMIC_Thermal", fmt, ##args); \
 	}								   \
 } while(0)
 
@@ -104,7 +105,7 @@ void tsbuck_read_6332_efuse(void)
     ret=pmic_config_interface(0x8C6C, 0x1, 0x1, 0);
 /*
     //dump
-    tsbuck_dprintk("Reg[0x%x]=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x\n",
+    xlog_printk(ANDROID_LOG_INFO, "Power/PMIC", "Reg[0x%x]=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x\n",
         0x80B2,upmu_get_reg_value(0x80B2),
         0x80A0,upmu_get_reg_value(0x80A0),
         0x8C6C,upmu_get_reg_value(0x8C6C)
@@ -139,7 +140,7 @@ void tsbuck_read_6332_efuse(void)
         efusevalue[j] = upmu_get_reg_value(0x8C6E);
 		printk("6332_efuse : efusevalue[%d]=0x%x\n",j, efusevalue[j]);
 /*
-        tsbuck_dprintk("i=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x\n",
+        xlog_printk(ANDROID_LOG_INFO, "Power/PMIC", "i=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x,Reg[0x%x]=0x%x\n",
             i,
             0x8C56,upmu_get_reg_value(0x8C56),
             0x8C70,upmu_get_reg_value(0x8C70),
@@ -154,7 +155,7 @@ void tsbuck_read_6332_efuse(void)
     ret=pmic_config_interface(0x80B4, 0x0010, 0xFFFF, 0); // new add
 /*
     //dump
-    tsbuck_dprintk("Reg[0x%x]=0x%x\n",
+    xlog_printk(ANDROID_LOG_INFO, "Power/PMIC", "Reg[0x%x]=0x%x\n",
         0x80A0,upmu_get_reg_value(0x80A0)
         );
 */
@@ -258,7 +259,7 @@ static int tsbuck_get_hw_temp(void)
 
 
 
-	temp = PMIC_IMM_GetOneChannelValue(AUX_TSENSE_32_AP, y_pmic_repeat_times , 2);
+	temp = PMIC_IMM_GetOneChannelValue(ADC_TSENSE_32_AP, y_pmic_repeat_times , 2);
     temp1 = pmic_raw_to_temp(temp);
     //temp2 = pmic_raw_to_temp(675);
 
@@ -647,13 +648,13 @@ int tsbuck_register_cooler(void)
 
 int tsbuck_register_thermal(void)
 {
-	tsbuck_dprintk("[tsbuck_register_thermal]\n");
+	tsbuck_dprintk("[tsbuck_register_thermal] \n");
 
-	/* trips : trip 0~2 */
-	if (NULL == thz_dev) {
-		thz_dev = mtk_thermal_zone_device_register("mtktsbuck", num_trip, NULL,
-					&tsbuck_dev_ops, 0, 0, 0, interval*1000);
-	}
+    /* trips : trip 0~2 */
+    if (NULL == thz_dev) {
+        thz_dev = mtk_thermal_zone_device_register("mtktsbuck", num_trip, NULL,
+                                                   &tsbuck_dev_ops, 0, 0, 0, interval*1000);
+    }
 
 	return 0;
 }

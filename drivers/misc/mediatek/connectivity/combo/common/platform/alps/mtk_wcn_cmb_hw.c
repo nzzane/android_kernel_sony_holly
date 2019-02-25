@@ -165,7 +165,7 @@ INT32 mtk_wcn_cmb_hw_pwr_on(VOID)
 				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_OUT_H);
 				break;
 			case STP_SDIO_IF_TX:
-				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_L);
+				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_NP);
 #ifdef CONFIG_MTK_COMBO_COMM_NPWR
 				iRet += wmt_plat_gpio_ctrl(PIN_PCM_GRP, PIN_STA_OUT_L);
 				iRet += wmt_plat_gpio_ctrl(PIN_I2S_DAT, PIN_STA_OUT_L);
@@ -211,14 +211,7 @@ INT32 mtk_wcn_cmb_hw_pwr_on(VOID)
 	if (0x6630 == mtk_wcn_wmt_chipid_query())
 	{
 		/*set UART Tx/Rx to UART mode*/
-		switch (wmt_plat_get_comm_if_type()) {
-		case STP_SDIO_IF_TX:
-			iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_H);
-			break;
-		default:
-			WMT_ERR_FUNC("not supported common interface\n");
-			break;
-		}
+		iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_MUX);
 		/*no need to config I2S and PCM here, later audio interface config will cover this part*/
 	}
 
@@ -254,7 +247,7 @@ INT32 mtk_wcn_cmb_hw_rst(VOID)
 				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_OUT_H);
 				break;
 			case STP_SDIO_IF_TX:
-				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_L);
+				iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_NP);
 #ifdef CONFIG_MTK_COMBO_COMM_NPWR
 				iRet += wmt_plat_gpio_ctrl(PIN_PCM_GRP, PIN_STA_OUT_L);
 				iRet += wmt_plat_gpio_ctrl(PIN_I2S_DAT, PIN_STA_OUT_L);
@@ -300,14 +293,7 @@ INT32 mtk_wcn_cmb_hw_rst(VOID)
 	if (0x6630 == mtk_wcn_wmt_chipid_query())
 	{
 		/*set UART Tx/Rx to UART mode*/
-		switch (wmt_plat_get_comm_if_type()) {
-		case STP_SDIO_IF_TX:
-			iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_IN_H);
-			break;
-		default:
-			WMT_ERR_FUNC("not supported common interface\n");
-			break;
-		}
+		iRet += wmt_plat_gpio_ctrl(PIN_UART_RX, PIN_STA_MUX);
 		/*no need to config I2S and PCM here, later audio interface config will cover this part*/
 	}
     /*4. set audio interface to CMB_STUB_AIF_1, BT PCM ON, I2S OFF*/

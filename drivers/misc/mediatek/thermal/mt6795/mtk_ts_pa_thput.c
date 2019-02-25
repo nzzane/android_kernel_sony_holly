@@ -6,6 +6,7 @@
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 #include <linux/aee.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -32,11 +33,11 @@
 #include <mach/mtk_ccci_helper.h>
 #endif
 
-#define mtk_mdm_debug_log 1
+#define mtk_mdm_debug_log 0
 #define mtk_mdm_dprintk(fmt, args...)   \
 do {                                    \
     if (mtk_mdm_debug_log) {                \
-        pr_notice("MDM_TxPower/PA_Thermal" fmt, ##args); \
+        xlog_printk(ANDROID_LOG_INFO, "MDM_TxPower/PA_Thermal", fmt, ##args); \
     }                                   \
 } while(0)
 

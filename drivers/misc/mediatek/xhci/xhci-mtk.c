@@ -68,6 +68,7 @@ struct xhci_hcd *mtk_xhci;
 static spinlock_t *mtk_hub_event_lock;
 static struct list_head* mtk_hub_event_list;
 static int mtk_ep_count;
+static int vbus_on = 0;
 
 static struct wake_lock mtk_xhci_wakelock;
 
@@ -96,6 +97,12 @@ static struct delayed_work mtk_xhci_delaywork;
 
 int mtk_iddig_debounce = 10;
 module_param(mtk_iddig_debounce, int, 0644);
+#if defined(CONFIG_MTK_BQ24296_SUPPORT)
+extern void bq24296_set_otg_config(kal_uint32 val);
+extern void bq24296_set_boostv(kal_uint32 val);
+extern void bq24296_set_boost_lim(kal_uint32 val);
+extern void bq24296_set_en_hiz(kal_uint32 val);
+#endif
 
 static void mtk_set_iddig_out_detect(void)
 {
@@ -114,7 +121,7 @@ static bool mtk_is_charger_4_vol(void)
 	int vol = battery_meter_get_charger_voltage();
 	mtk_xhci_mtk_log("voltage(%d)\n", vol);
 
-#if defined(CONFIG_USBIF_COMPLIANCE) || defined(CONFIG_POWER_EXT)
+#if defined(CONFIG_USBIF_COMPLIANCE) || defined(CONFIG_MTK_USB_EVB_BOARD)
 	return false ;
 #else
 	return (vol > 4000) ? true : false;
@@ -164,14 +171,30 @@ static void pmic_restore_regs(void){
 	}
 }
 
-static void mtk_enable_pmic_otg_mode(void)
+void mtk_enable_pmic_otg_mode(void)
 {
-	int val;
-
+	int val = 0;
+	int cnt = 0;
+	
+    vbus_on++;
+    /// vbus_on =1;
+    mtk_xhci_mtk_log("set pmic power on, %d\n", vbus_on);
+    #if 1
+	if(vbus_on > 1)
+	{
+	    return;
+    }
+    #endif
+#if defined(CONFIG_MTK_BQ24296_SUPPORT)
+        bq24296_set_otg_config(0x1); //OTG
+       // bq24296_set_boostv(0x7); //boost voltage 4.998V
+      //  bq24296_set_boost_lim(0x1); //1.5A on VBUS
+      //  bq24296_set_en_hiz(0x0);
+#else
 	mt_set_gpio_mode(GPIO_OTG_DRVVBUS_PIN, GPIO_MODE_GPIO);
 	mt_set_gpio_pull_select(GPIO_OTG_DRVVBUS_PIN, GPIO_PULL_DOWN);
 	mt_set_gpio_pull_enable(GPIO_OTG_DRVVBUS_PIN, GPIO_PULL_ENABLE);
-
+#endif
 	/* save PMIC related registers */
 	pmic_save_regs();
 
@@ -211,28 +234,49 @@ static void mtk_enable_pmic_otg_mode(void)
 	mdelay(50);
 
 	val = 0;
-	while (val == 0) {
+	while (val == 0 && cnt < 20) {
 		pmic_read_interface(0x8060, &val, 0x1, 14);
+		cnt++;
+		mdelay(2);
 	}
 
 	#ifdef CONFIG_MTK_OTG_OC_DETECTOR
-	schedule_delayed_work_on(0, &mtk_xhci_oc_delaywork, msecs_to_jiffies(OC_DETECTOR_TIMER));
+	schedule_delayed_work_on(0, &mtk_xhci_oc_delaywork, msecs_to_jiffies(OC_DETECTOR_TIMER)); 
 	#endif
-	mtk_xhci_mtk_log("set pmic power on, done\n");
+	mtk_xhci_mtk_log("set pmic power on(cnt:%d), done\n", cnt);
 }
 
-static void mtk_disable_pmic_otg_mode(void)
+void mtk_disable_pmic_otg_mode(void)
 {
-	int val;
-
+	int val =0;
+	int cnt = 0;
+	
+	///vbus_on = 0;
+	
+    vbus_on--;
+    mtk_xhci_mtk_log("set pmic power off %d\n", vbus_on);
+    
+    if(vbus_on < 0 || vbus_on > 0)
+    {
+        if(vbus_on < 0)
+            vbus_on = 0;
+        return;
+    }
+  #if defined(CONFIG_MTK_BQ24296_SUPPORT)
+        bq24296_set_otg_config(0); 
+#endif  
+	  
+	
 	pmic_config_interface(0x8068, 0x0, 0x1, 0);
 	pmic_config_interface(0x8084, 0x0, 0x1, 0);
 	mdelay(50);
 	pmic_config_interface(0x8068, 0x0, 0x1, 1);
 
 	val = 1;
-	while (val == 1) {
+	while (val == 1 && cnt <20) {
 		pmic_read_interface(0x805E, &val, 0x1, 4);
+		cnt++;
+		mdelay(2);
 	}
 
 	#if 0
@@ -249,7 +293,7 @@ static void mtk_disable_pmic_otg_mode(void)
 	#ifdef CONFIG_MTK_OTG_OC_DETECTOR
 	cancel_delayed_work(&mtk_xhci_oc_delaywork);
 	#endif
-	mtk_xhci_mtk_log("set pimc power off, done\n");
+	mtk_xhci_mtk_log("set pmic power off(cnt:%d), done\n", cnt);
 }
 
 #ifdef CONFIG_MTK_OTG_OC_DETECTOR
@@ -400,8 +444,7 @@ static void mtk_xhci_imod_set(u32 imod)
 	xhci_writel(mtk_xhci, temp, &mtk_xhci->ir_set->irq_control);
 }
 
-//CONN-USB-JY-usb id polling-00
-//extern void usb20_pll_settings(bool host, bool forceOn);
+extern void usb20_pll_settings(bool host, bool forceOn);
 
 static int mtk_xhci_driver_load(void)
 {
@@ -424,6 +467,9 @@ static int mtk_xhci_driver_load(void)
 #else
 #ifdef CONFIG_MTK_OTG_PMIC_BOOST_5V
 	mtk_enable_pmic_otg_mode();
+
+	/* USB PLL Force settings */
+	usb20_pll_settings(true, true);
 #else
 	enableXhciAllPortPower(mtk_xhci);
 #endif
@@ -472,6 +518,9 @@ void mtk_xhci_switch_init(void)
 #endif
 }
 
+#if defined(MHL_SII8348)
+extern void switch_mhl_to_d3(void);
+#endif
 void mtk_xhci_mode_switch(struct work_struct *work)
 {
 	static bool is_load = false;
@@ -502,7 +551,6 @@ void mtk_xhci_mode_switch(struct work_struct *work)
 		if (is_load) {
 			if(!is_pwoff)
 				mtk_xhci_disPortPower();
-			//CONN-USB-JY-usb id polling-00+{
 
 			/* prevent hang here */
 			/* if(mtk_is_hub_active()){
@@ -510,8 +558,10 @@ void mtk_xhci_mode_switch(struct work_struct *work)
 				schedule_delayed_work_on(0, &mtk_xhci_delaywork, msecs_to_jiffies(mtk_iddig_debounce));
 				mtk_xhci_mtk_log("wait, hub is still active, ep cnt %d !!!\n", mtk_ep_count);
 				return;
-			} */
-			//CONN-USB-JY-usb id polling-00+}
+			}*/
+
+			/* USB PLL Force settings */
+			usb20_pll_settings(true, false);
 
 			mtk_xhci_driver_unload();
 			is_pwoff = false;
@@ -520,6 +570,10 @@ void mtk_xhci_mode_switch(struct work_struct *work)
 			switch_set_state(&mtk_otg_state, 0);
 #endif
 			mtk_xhci_wakelock_unlock();
+
+#if defined(MHL_SII8348)
+			switch_mhl_to_d3();
+#endif			
 		}
 
 		/* expect next isr is for id-pin in action */
@@ -547,15 +601,6 @@ static irqreturn_t xhci_eint_iddig_isr(int irqnum, void *data)
 	disable_irq_nosync(irqnum);
 	return IRQ_HANDLED;
 }
-
-//CONN-USB-JY-usb id polling-00+{
-void mtk_xhci_eint_iddig_default(void)
-{
-	mt_set_gpio_mode(GPIO_OTG_IDDIG_EINT_PIN, GPIO_MODE_00);
-	mt_set_gpio_dir(GPIO_OTG_IDDIG_EINT_PIN, GPIO_DIR_OUT);
-	mt_set_gpio_out(GPIO_OTG_IDDIG_EINT_PIN, 0);
-}
-//CONN-USB-JY-usb id polling-00+}
 
 int mtk_xhci_eint_iddig_init(void)
 {
@@ -593,8 +638,8 @@ int mtk_xhci_eint_iddig_init(void)
 	mtk_idpin_irqnum = mt_gpio_to_irq(iddig_gpio);
 
 	/* microseconds */
-	mt_gpio_set_debounce(iddig_gpio, 50);
-
+	mt_gpio_set_debounce(iddig_gpio, 150000); 
+ 
 	retval =
 	    request_irq(mtk_idpin_irqnum, xhci_eint_iddig_isr, IRQF_TRIGGER_LOW, "iddig_eint",
 			NULL);
@@ -641,7 +686,7 @@ void mtk_set_host_mode_out(void)
 
 bool mtk_is_host_mode(void)
 {
-	return (mtk_idpin_cur_stat == IDPIN_IN_HOST) ? true : false;
+	return (vbus_on > 0 || mtk_idpin_cur_stat == IDPIN_IN_HOST) ? true : false;
 }
 
 #endif

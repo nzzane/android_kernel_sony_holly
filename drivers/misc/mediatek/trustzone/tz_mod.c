@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/ioctl.h>
+#include <linux/xlog.h>
 #include <linux/pagemap.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -25,8 +26,6 @@
 #include "trustzone/tz_cross/ta_mem.h"
 #include "tz_ndbg.h"
 
-#include "tz_secure_clock.h"
-#include <linux/earlysuspend.h>
 #define MTEE_MOD_TAG "MTEE_MOD"
 
 #define TZ_PAGESIZE 0x1000 // fix me!!!! need global define
@@ -38,7 +37,7 @@
 
 /**************************************************************************
  *  TZ MODULE PARAMETER
- **************************************************************************/
+ **************************************************************************/ 
 static uint memsz = 0;
 module_param(memsz, uint, S_IRUSR|S_IRGRP|S_IROTH); /* r--r--r-- */
 MODULE_PARM_DESC(memsz, "the memory size occupied by tee");
@@ -47,11 +46,10 @@ MODULE_PARM_DESC(memsz, "the memory size occupied by tee");
 */
 typedef struct
 {
-    void *start;
-    void *pageArray;
+    uint32_t start;
     uint32_t size;
+    uint32_t pageArray;
     uint32_t nrPages;
-    uint32_t isPage;
 } MTIOMMU_PIN_RANGE_T;
 
 /*****************************************************************************
@@ -62,9 +60,6 @@ static dev_t tz_client_dev;
 static int tz_client_open(struct inode *inode, struct file *filp);
 static int tz_client_release(struct inode *inode, struct file *filp);
 static long tz_client_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-#ifdef CONFIG_COMPAT
-static long tz_client_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg);
-#endif
 
 static int tz_client_init_client_info(struct file *file);
 static void tz_client_free_client_info(struct file *file);
@@ -93,9 +88,6 @@ static const struct file_operations tz_client_fops = {
     .open = tz_client_open,
     .release = tz_client_release,
     .unlocked_ioctl = tz_client_ioctl,
-#ifdef CONFIG_COMPAT
-    .compat_ioctl = tz_client_ioctl_compat,
-#endif
     .owner = THIS_MODULE,
     };
 
@@ -113,12 +105,11 @@ static int tz_client_release(struct inode *inode, struct file *filp)
 
 /* map user space pages */
 /* control -> 0 = write, 1 = read only memory */
-static long _map_user_pages (MTIOMMU_PIN_RANGE_T* pinRange, unsigned long uaddr, uint32_t size, uint32_t control)
+static long _map_user_pages (MTIOMMU_PIN_RANGE_T* pinRange, uint32_t uaddr, uint32_t size, uint32_t control)
 {
     int nr_pages;
     unsigned int first,last;
     struct page **pages;
-    struct vm_area_struct *vma;
     int res, j;
     uint32_t write;
 
@@ -127,64 +118,31 @@ static long _map_user_pages (MTIOMMU_PIN_RANGE_T* pinRange, unsigned long uaddr,
         return -EFAULT;
     }
 
-    pinRange->start = (void *)uaddr;
+    pinRange->start = uaddr;
     pinRange->size = size;
 
     first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
     last  = ((uaddr + size + PAGE_SIZE - 1) & PAGE_MASK) >> PAGE_SHIFT;
     nr_pages = last-first;
-    if((pages = kzalloc(nr_pages * sizeof(struct page *), GFP_KERNEL)) == NULL)
+    if((pages = kzalloc(nr_pages * sizeof(struct page), GFP_KERNEL)) == NULL)
     {
         return -ENOMEM;
     }
 
-    pinRange->pageArray = pages;
+    pinRange->pageArray = (uint32_t)pages;
     write = (control == 0) ? 1 : 0;
 
     /* Try to fault in all of the necessary pages */
     down_read(&current->mm->mmap_sem);
-    vma = find_vma_intersection(current->mm, uaddr, uaddr+size);
-    if (!vma)
-    {
-        res = -EFAULT;
-        goto out;
-    }
-    if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
-    {
-        pinRange->isPage = 1;
-        res = get_user_pages(
-                current,
-                current->mm,
-                uaddr,
-                nr_pages,
-                write,
-                0, /* don't force */
-                pages,
-                NULL);
-    }
-    else
-    {
-        /* pfn mapped memory, don't touch page struct.
-           the buffer manager (possibly ion) should make sure it won't be used for anything else */
-        pinRange->isPage = 0;
-        res = 0;
-        do {
-                unsigned long *pfns = (void *)pages;
-                while( res < nr_pages && uaddr + PAGE_SIZE <= vma->vm_end) {
-                        j = follow_pfn(vma, uaddr, &pfns[res]);
-                        if(j) { /* error */
-                                res = j;
-                                goto out;
-                        }
-                        uaddr += PAGE_SIZE;
-                        res++;
-                }
-                if(res >= nr_pages || uaddr < vma->vm_end)
-                        break;
-                vma = find_vma_intersection(current->mm, uaddr, uaddr+1);
-        } while (vma && vma->vm_flags & (VM_IO | VM_PFNMAP));
-    }
-out:
+    res = get_user_pages(
+            current,
+            current->mm,
+            uaddr,
+            nr_pages,
+            write, 
+            0, /* don't force */
+            pages,
+            NULL);
     up_read(&current->mm->mmap_sem);
     if (res < 0)
     {
@@ -205,12 +163,9 @@ out_unmap:
     printk("_map_user_pages fail\n");
     if (res > 0)
     {
-        if(pinRange->isPage)
+        for (j=0; j < res; j++)
         {
-            for (j=0; j < res; j++)
-            {
-                put_page(pages[j]);
-            }
+            put_page(pages[j]);
         }
     }
     res = -EFAULT;
@@ -227,18 +182,15 @@ static void _unmap_user_pages (MTIOMMU_PIN_RANGE_T* pinRange)
 
     pages = (struct page **) pinRange->pageArray;
 
-    if(pinRange->isPage)
-    {
-        res = pinRange->nrPages;
+    res = pinRange->nrPages;
 
-        if (res > 0)
+    if (res > 0)
+    {
+        for (j=0; j < res; j++)
         {
-            for (j=0; j < res; j++)
-            {
-                put_page(pages[j]);
-            }
-            res = 0;
+            put_page(pages[j]);
         }
+        res = 0;
     }
 
     kfree(pages);
@@ -549,7 +501,7 @@ static long tz_client_open_session(struct file *file, unsigned long arg)
     if (!access_ok(VERIFY_READ, param.data, 10))
         return -EFAULT;
 
-    len = strncpy_from_user(uuid, (void *)(unsigned long)param.data, sizeof(uuid));
+    len = strncpy_from_user(uuid, param.data, sizeof(uuid));
     if (len <= 0)
         return -EFAULT;
 
@@ -604,7 +556,7 @@ static long tz_client_close_session(struct file *file, unsigned long arg)
     return 0;
 }
 
-static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned int compat)
+static long tz_client_tee_service(struct file *file, unsigned long arg)
 {
     struct kree_tee_service_cmd_param cparam;
     unsigned long cret;
@@ -613,8 +565,6 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
     int i;
     TZ_RESULT ret;
     KREE_SESSION_HANDLE handle;
-    void __user *ubuf;
-    uint32_t ubuf_sz;
 
     cret = copy_from_user(&cparam, (void*)arg, sizeof(cparam));
     if (cret)
@@ -623,10 +573,10 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
     if (cparam.paramTypes != TZPT_NONE || cparam.param)
     {
         // Check if can we access param
-        if (!access_ok(VERIFY_READ, (unsigned long)cparam.param, sizeof(oparam)))
+        if (!access_ok(VERIFY_READ, cparam.param, sizeof(oparam)))
             return -EFAULT;
 
-        cret = copy_from_user(oparam, (void*)(unsigned long)cparam.param, sizeof(oparam));
+        cret = copy_from_user(oparam, (void*)cparam.param, sizeof(oparam));
         if (cret)
             return -EFAULT;
     }
@@ -658,21 +608,11 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
             case TZPT_MEM_INPUT:
             case TZPT_MEM_OUTPUT:
             case TZPT_MEM_INOUT:
-#ifdef CONFIG_COMPAT
-                if (compat) {
-                        ubuf = compat_ptr(oparam[i].mem32.buffer);
-                        ubuf_sz = oparam[i].mem32.size;
-                } else
-#endif
-                {
-                        ubuf = oparam[i].mem.buffer;
-                        ubuf_sz = oparam[i].mem.size;
-                }
-
                 // Mem Access check
                 if (type != TZPT_MEM_OUTPUT)
                 {
-                    if (!access_ok(VERIFY_READ, ubuf, ubuf_sz))
+                    if (!access_ok(VERIFY_READ, oparam[i].mem.buffer,
+                                   oparam[i].mem.size))
                     {
                         cret = -EFAULT;
                         goto error;
@@ -680,7 +620,8 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
                 }
                 if (type != TZPT_MEM_INPUT)
                 {
-                    if (!access_ok(VERIFY_WRITE, ubuf, ubuf_sz))
+                    if (!access_ok(VERIFY_WRITE, oparam[i].mem.buffer,
+                                   oparam[i].mem.size))
                     {
                         cret = -EFAULT;
                         goto error;
@@ -688,13 +629,13 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
                 }
 
                 // Allocate kernel space memory. Fail if > 4kb
-                if (ubuf_sz > TEE_PARAM_MEM_LIMIT)
+                if (oparam[i].mem.size > TEE_PARAM_MEM_LIMIT)
                 {
                     cret = -ENOMEM;
                     goto error;
                 }
 
-                param[i].mem.size = ubuf_sz;
+                param[i].mem.size = oparam[i].mem.size;
                 param[i].mem.buffer = kmalloc(param[i].mem.size, GFP_KERNEL);
                 if (!param[i].mem.buffer)
                 {
@@ -705,7 +646,7 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
                 if (type != TZPT_MEM_OUTPUT)
                 {
                     cret = copy_from_user(param[i].mem.buffer,
-                                          ubuf,
+                                          (void*)oparam[i].mem.buffer,
                                           param[i].mem.size);
                     if (cret)
                     {
@@ -760,16 +701,9 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
             case TZPT_MEM_INPUT:
             case TZPT_MEM_OUTPUT:
             case TZPT_MEM_INOUT:
-#ifdef CONFIG_COMPAT
-                if (compat)
-                    ubuf = compat_ptr(oparam[i].mem32.buffer);
-                else
-#endif
-                    ubuf = oparam[i].mem.buffer;
-
                 if (type != TZPT_MEM_INPUT)
                 {
-                    cret = copy_to_user(ubuf,
+                    cret = copy_to_user((void*)oparam[i].mem.buffer,
                                         param[i].mem.buffer,
                                         param[i].mem.size);
                     if (cret)
@@ -791,7 +725,7 @@ static long tz_client_tee_service(struct file *file, unsigned long arg, unsigned
     // Copy data back.
     if (cparam.paramTypes != TZPT_NONE)
     {
-        cret = copy_to_user((void*)(unsigned long)cparam.param, oparam, sizeof(oparam));
+        cret = copy_to_user((void*)cparam.param, oparam, sizeof(oparam));
         if (cret)
             return -EFAULT;
     }
@@ -837,7 +771,6 @@ static long tz_client_reg_sharedmem (struct file *file, unsigned long arg)
     struct page **page;
     int i;
     long errcode;
-    unsigned long *pfns;
 
 	cret = copy_from_user(&cparam, (void*)arg, sizeof(cparam));
     if (cret)
@@ -861,7 +794,7 @@ static long tz_client_reg_sharedmem (struct file *file, unsigned long arg)
         errcode = -ENOMEM;
         goto client_regshm_mapfail;
     }
-    cret = _map_user_pages (pin, (unsigned long)cparam.buffer, cparam.size, cparam.control);
+    cret = _map_user_pages (pin, (uint32_t) cparam.buffer, cparam.size, cparam.control);
     if (cret != 0)
     {
         printk ("tz_client_reg_sharedmem fail: map user pages = 0x%x\n", (uint32_t) cret);
@@ -876,27 +809,16 @@ static long tz_client_reg_sharedmem (struct file *file, unsigned long arg)
         goto client_regshm_mapfail_2;
     }
     map_p[0] = pin->nrPages;
-    if(pin->isPage)
+    page = (struct page **) pin->pageArray;
+    for (i = 0; i < pin->nrPages; i ++)
     {
-        page = (struct page **) pin->pageArray;
-        for (i = 0; i < pin->nrPages; i ++)
-        {
-            	map_p[1 + i] = PFN_PHYS(page_to_pfn(page[i])); // get PA
-            	//printk ("tz_client_reg_sharedmem ---> 0x%x\n", map_p[1+i]);
-        }
-    }
-    else /* pfn */
-    {
-        pfns = (unsigned long*)pin->pageArray;
-        for (i = 0; i < pin->nrPages; i++) {
-                map_p[1 + i] = PFN_PHYS(pfns[i]);       /* get PA */
-                /* pr_info("tz_client_reg_sharedmem ---> 0x%x\n", map_p[1+i]); */
-        }
+		map_p[1 + i] = PFN_PHYS(page_to_pfn(page[i])); // get PA
+		//printk ("tz_client_reg_sharedmem ---> 0x%x\n", map_p[1+i]);
     }
 
     /* register it ...
        */
-    ret = kree_register_sharedmem (session, &mem_handle, pin->start, pin->size, map_p);
+    ret = kree_register_sharedmem (session, &mem_handle, (uint32_t) pin->start, pin->size, (uint32_t) map_p);
     if (ret != TZ_RESULT_SUCCESS)
     {
         printk ("tz_client_reg_sharedmem fail: register shm 0x%x\n", ret);
@@ -967,7 +889,7 @@ static long tz_client_unreg_sharedmem (struct file *file, unsigned long arg)
 
     /* Unregister
        */
-    ret = kree_unregister_sharedmem (session, cparam.mem_handle);
+    ret = kree_unregister_sharedmem (session, (uint32_t) cparam.mem_handle);
     if (ret != TZ_RESULT_SUCCESS)
     {
         printk ("tz_client_unreg_sharedmem: 0x%x\n", ret);
@@ -997,7 +919,7 @@ static long tz_client_unreg_sharedmem (struct file *file, unsigned long arg)
 
 
 
-static long do_tz_client_ioctl(struct file *file, unsigned int cmd, unsigned long arg, unsigned int compat)
+static long tz_client_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     int err   = 0;
 
@@ -1025,7 +947,7 @@ static long do_tz_client_ioctl(struct file *file, unsigned int cmd, unsigned lon
             return tz_client_close_session(file, arg);
 
         case MTEE_CMD_TEE_SERVICE:
-            return tz_client_tee_service(file, arg, compat);
+            return tz_client_tee_service(file, arg);
 
 		case MTEE_CMD_SHM_REG:
 		    return tz_client_reg_sharedmem (file, arg);
@@ -1039,18 +961,6 @@ static long do_tz_client_ioctl(struct file *file, unsigned int cmd, unsigned lon
 
     return 0;
 }
-
-static long tz_client_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-    return do_tz_client_ioctl(file, cmd, arg, 0);
-}
-
-#ifdef CONFIG_COMPAT
-static long tz_client_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
-{
-    return do_tz_client_ioctl(file, cmd, (unsigned long)compat_ptr(arg), 1);
-}
-#endif
 
 /* pm op funcstions */
 static int tz_suspend(struct device *pdev)
@@ -1127,14 +1037,14 @@ static int __init register_tz_driver(void)
     if(platform_device_register(&tz_device))
     {
         ret = -ENODEV;
-        pr_debug(MTEE_MOD_TAG "[%s] could not register device for the device, ret:%d\n", MODULE_NAME, ret);
+        xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] could not register device for the device, ret:%d\n", MODULE_NAME, ret);
         return ret;
     }
 
     if(platform_driver_register(&tz_driver))
     {
         ret = -ENODEV;
-        pr_debug(MTEE_MOD_TAG "[%s] could not register device for the device, ret:%d\n", MODULE_NAME, ret);
+        xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] could not register device for the device, ret:%d\n", MODULE_NAME, ret);
         platform_device_unregister(&tz_device);
         return ret;
     }
@@ -1169,24 +1079,21 @@ static int __init tz_client_init(void)
 #ifdef ENABLE_INC_ONLY_COUNTER
     struct task_struct *thread;
 #endif
-#ifdef TZ_SECURETIME_SUPPORT
-	struct task_struct *thread_securetime_gb;
-#endif
     ret = register_tz_driver();
     if (ret)
     {
-	pr_debug(MTEE_MOD_TAG "[%s] register device/driver failed, ret:%d\n", MODULE_NAME, ret);
+	xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] register device/driver failed, ret:%d\n", MODULE_NAME, ret);
         return ret;
     }
 
     tz_client_dev = MKDEV(MAJOR_DEV_NUM, 0);
 
-	pr_debug(MTEE_MOD_TAG " init\n");
+	xlog_printk(ANDROID_LOG_INFO, MTEE_MOD_TAG ," init\n");
 
 	ret = register_chrdev_region(tz_client_dev, 1, TZ_DEV_NAME );
 	if (ret)
 	{
-	    pr_debug(MTEE_MOD_TAG "[%s] register device failed, ret:%d\n", MODULE_NAME, ret);
+	    xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] register device failed, ret:%d\n", MODULE_NAME, ret);
 	    return ret;
     }
 
@@ -1196,7 +1103,7 @@ static int __init tz_client_init(void)
 
     if ((ret = cdev_add(&tz_client_cdev, tz_client_dev, 1)) < 0)
     {
-        pr_debug(MTEE_MOD_TAG "[%s] could not allocate chrdev for the device, ret:%d\n", MODULE_NAME, ret);
+        xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] could not allocate chrdev for the device, ret:%d\n", MODULE_NAME, ret);
         return ret;
     }
 
@@ -1226,7 +1133,7 @@ static int __init tz_client_init(void)
     pTzClass = class_create(THIS_MODULE, TZ_DEV_NAME);
     if (IS_ERR(pTzClass)) {
         int ret = PTR_ERR(pTzClass);
-        pr_debug(MTEE_MOD_TAG "[%s] could not create class for the device, ret:%d\n", MODULE_NAME, ret);
+        xlog_printk(ANDROID_LOG_ERROR, MTEE_MOD_TAG ,"[%s] could not create class for the device, ret:%d\n", MODULE_NAME, ret);
         return ret;
     }
     pTzDevice = device_create(pTzClass, NULL, tz_client_dev, NULL, TZ_DEV_NAME);
@@ -1247,9 +1154,6 @@ static int __init tz_client_init(void)
     {
         printk("KREE_CloseSession Fail, ret=%d\n", (int)tzret);
     }
-#ifdef TZ_SECURETIME_SUPPORT
-		thread_securetime_gb = kthread_run(update_securetime_thread_gb, NULL, "update_securetime_gb");
-#endif
 
     return 0;
 }

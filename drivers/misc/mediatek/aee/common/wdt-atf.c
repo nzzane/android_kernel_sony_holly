@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/mt_sched_mon.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
@@ -26,7 +27,6 @@
 #endif
 #include "aee-common.h"
 #include <mach/mt_secure_api.h>
-#include "mt_sched_mon.h"
 
 
 #define THREAD_INFO(sp) ((struct thread_info *) \
@@ -367,13 +367,12 @@ static void aee_save_reg_stack_sram(int cpu)
 				      stacks_buffer_bin[cpu].real_len);
 
 		memset(str_buf, 0, sizeof(str_buf));
-		len = snprintf(str_buf, sizeof(str_buf), "\ncpu %d backtrace:\n", cpu);
+		len = snprintf(str_buf, sizeof(str_buf), "\ncpu %d backtrace : ", cpu);
 		for (i = 0; i < MAX_EXCEPTION_FRAME; i++) {
 			if (wdt_percpu_stackframe[cpu][i] == 0)
 				break;
 			len += snprintf((str_buf + len), (sizeof(str_buf) - len),
-                        		"[%08lx]%pS\n", wdt_percpu_stackframe[cpu][i],(void *)wdt_percpu_stackframe[cpu][i]);
-
+					"%08lx, ", wdt_percpu_stackframe[cpu][i]);
 		}
 		aee_sram_fiq_log(str_buf);
 	}
@@ -467,9 +466,7 @@ void aee_wdt_atf_info(unsigned int cpu, struct pt_regs *regs)
 
 void notrace aee_wdt_atf_entry(void)
 {
-#ifdef CONFIG_ARM64
 	int i;
-#endif	
 	void *regs;
 	struct pt_regs pregs;
 	int cpu = get_HW_cpuid();

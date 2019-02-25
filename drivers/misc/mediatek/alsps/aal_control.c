@@ -57,12 +57,12 @@ static long AAL_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned lon
 				break;
 	
 			case AAL_GET_ALS_DATA: 
-	            //if ((dat = alsps_aal_get_data()) < 0){
-					//AAL_LOG("alsps_aal_get_data fail\n");
+	            if ((dat = alsps_aal_get_data()) < 0){
+					AAL_LOG("alsps_aal_get_data fail\n");
 					dat = hwmsen_aal_get_data();
-	            //}
+	            }
 				
-				//AAL_LOG("Get als dat :%d\n", dat);
+				AAL_LOG("Get als dat :%d\n", dat);
 				
 				if(copy_to_user(ptr, &dat, sizeof(dat)))
 				{

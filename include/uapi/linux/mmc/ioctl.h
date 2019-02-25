@@ -45,21 +45,7 @@ struct mmc_ioc_cmd {
 };
 #define mmc_ioc_cmd_set_data(ic, ptr) ic.data_ptr = (__u64)(unsigned long) ptr
 
-struct mmc_ioc_device_power_control{
-	int flag;
-};
-#define MMC_IOC_DEVICE_POWER_CONTROL _IOWR(MMC_BLOCK_MAJOR, 2, struct mmc_ioc_device_power_control)
-
-#define MMC_DEVICE_POWER_OFF 0
-#define MMC_DEVICE_POWER_ON 1
-
-#define MMC_POWER_CONTROL_PASS	0
-#define MMC_POWER_CONTROL_FAIL	1
-#define MMC_POWER_CONTROL_OVER_CURRENT	2
-
-
 #define MMC_IOC_CMD _IOWR(MMC_BLOCK_MAJOR, 0, struct mmc_ioc_cmd)
-#define MMC_IOC_FFU_CMD _IOWR(MMC_BLOCK_MAJOR, 1, struct mmc_ioc_cmd)
 
 /*
  * Since this ioctl is only meant to enhance (and not replace) normal access
@@ -68,5 +54,4 @@ struct mmc_ioc_device_power_control{
  * block device operations.
  */
 #define MMC_IOC_MAX_BYTES  (512L * 256)
-#define MMC_FFU_IOC_MAX_BYTES  (512L * 1024)
 #endif /* LINUX_MMC_IOCTL_H */

@@ -826,6 +826,8 @@ static int musb_gadget_disable(struct usb_ep *ep)
 
 	spin_unlock_irqrestore(&(musb->lock), flags);
 
+	dev_dbg(musb->controller, "%s\n", musb_ep->end_point.name);
+
 	return status;
 }
 
@@ -921,6 +923,8 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 		return -EINVAL;
 
 	os_printk(K_DEBUG, "%s %s, req=%p, len#%d\n", __func__, ep->name, req, request->request.length);
+
+	dev_dbg(musb->controller, "<== to %s request=%p\n", ep->name, req);
 
 	/* request is mine now... */
 	request->request.actual = 0;
@@ -1594,7 +1598,7 @@ int musb_gadget_setup(struct musb *musb)
 	 */
 
 	musb->g.ops = &musb_gadget_operations;
-	musb->g.max_speed = USB_SPEED_HIGH;
+	musb->g.max_speed = USB_SPEED_SUPER;
 	musb->g.speed = USB_SPEED_UNKNOWN;
 
 	/* this "gadget" abstracts/virtualizes the controller */

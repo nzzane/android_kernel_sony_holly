@@ -1,1 +1,1 @@
-obj-$(CONFIG_SECURITY_SELINUX) += selinux_warning.o
+obj-y += selinux_warning.o

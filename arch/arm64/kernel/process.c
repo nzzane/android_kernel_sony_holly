@@ -1,7 +1,6 @@
 /*
  * Based on arch/arm/kernel/process.c
  *
- * Copyright(C) 2014-2015 Foxconn International Holdings, Ltd. All rights reserved.
  * Original Copyright (C) 1995  Linus Torvalds
  * Copyright (C) 1996-2000 Russell King - Converted to ARM.
  * Copyright (C) 2012 ARM Ltd.
@@ -54,13 +53,6 @@
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
-//CORE-KH-DbgCfgTool-ForceTriggerPanic-00-a[
-#include <linux/slab.h>	
-#include <linux/fs.h>
-#include <linux/file.h> 
-#include <linux/fih_sw_info.h>	
-#include <linux/vmalloc.h>
-//CORE-KH-DbgCfgTool-ForceTriggerPanic-00-a]
 
 extern void arch_reset(char mode, const char *cmd);
 
@@ -98,136 +90,6 @@ EXPORT_SYMBOL_GPL(pm_power_off);
 void (*arm_pm_restart)(char str, const char *cmd);
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
-//CORE-KH-DbgCfgTool-ForceTriggerPanic-00-a[
-static void __init *remap_lowmem(phys_addr_t start, phys_addr_t size)
-{
-	struct page **pages;
-	phys_addr_t page_start;
-	unsigned int page_count;
-	pgprot_t prot;
-	unsigned int i;
-	void *vaddr;
-
-	page_start = start - offset_in_page(start);
-	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
-
-	prot = pgprot_noncached(PAGE_KERNEL);
-
-	pages = kmalloc(sizeof(struct page *) * page_count, GFP_KERNEL);
-	if (!pages) {
-		pr_err("%s: Failed to allocate array for %u pages\n", __func__, page_count);
-		return NULL;
-	}
-
-	for (i = 0; i < page_count; i++) {
-		phys_addr_t addr = page_start + i * PAGE_SIZE;
-		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
-	}
-	vaddr = vmap(pages, page_count, VM_MAP, prot);
-	kfree(pages);
-	if (!vaddr) {
-		pr_err("%s: Failed to map %u pages\n", __func__, page_count);
-		return NULL;
-
-
-	}
-
-	return vaddr + offset_in_page(start);
-}
-
-/*====================================
- * write kernel panic data into txt
- *===================================*/ 
-#ifdef CONFIG_FEATURE_FIH_SW3_PANIC_FILE 
-#define KSYM_NAME_LEN_FIH 128
-
-void * get_pwron_cause_virt_addr(void)
-{
-	static void *pwron_cause_virt_addr = 0;
-
-	if (unlikely(pwron_cause_virt_addr == 0)){
-		pwron_cause_virt_addr = remap_lowmem(FIH_PWRON_CAUSE_ADDR, FIH_PWRON_CAUSE_LEN);
-		if (pwron_cause_virt_addr == NULL)
-			printk(KERN_ERR "pwron_cause_virt_addr iormap failed\n");
-	}
-
-	return pwron_cause_virt_addr;
-}
-
-EXPORT_SYMBOL(get_pwron_cause_virt_addr);
-
-/* CORE-TH-power_on_cause-00+[ */
-void * get_hw_wd_virt_addr(void)
-{
-       static void *hw_wd_virt_addr = 0;
-
-       if (unlikely(hw_wd_virt_addr == 0)){
-               hw_wd_virt_addr = ioremap(FIH_HW_WD_ADDR, FIH_HW_WD_LEN);
-               if (hw_wd_virt_addr == NULL)
-                       printk(KERN_ERR "hw_wd_virt_addr iormap failed\n");
-       }
-
-       return hw_wd_virt_addr;
-}
-
-EXPORT_SYMBOL(get_hw_wd_virt_addr);
-
-void write_pwron_cause (int pwron_cause)
-{
-       unsigned int *pwron_cause_ptr;
-
-       pwron_cause_ptr = (unsigned int*) get_pwron_cause_virt_addr();
-       if (pwron_cause_ptr == NULL)
-               return;
-
-       switch (pwron_cause) {
-       case HOST_KERNEL_PANIC:
-               *pwron_cause_ptr |= MTD_PWR_ON_EVENT_KERNEL_PANIC;
-               break;
-       case MODEM_FATAL_ERR:
-               *pwron_cause_ptr |= MTD_PWR_ON_EVENT_MODEM_FATAL_ERROR;
-               break;
-       case MODEM_SW_WDOG_EXPIRED:
-               *pwron_cause_ptr |= MTD_PWR_ON_EVENT_MODEM_SW_WD_RESET;
-               break;
-       case MODEM_FW_WDOG_EXPIRED:
-               *pwron_cause_ptr |= MTD_PWR_ON_EVENT_MODEM_FW_WD_RESET;
-               break;
-       case SOFTWARE_RESET:
-               if (*pwron_cause_ptr & MTD_PWR_ON_EVENT_PWR_OFF_CHG_REBOOT)
-                       printk("PWR_OFF_CHG_REBOOT is detected. Keep POC as it is.\n");
-               else
-                       *pwron_cause_ptr |= MTD_PWR_ON_EVENT_SOFTWARE_RESET;
-               break;
-       case PWR_OFF_CHG_REBOOT:
-               *pwron_cause_ptr |= MTD_PWR_ON_EVENT_PWR_OFF_CHG_REBOOT;
-               break;
-       default:
-               printk("%d Unknown reboot_reason!\n", pwron_cause);
-       }
-}
-
-EXPORT_SYMBOL(write_pwron_cause);
-/* CORE-TH-power_on_cause-00+] */
-
-/* CORE-TH-S1_FOTA_Warmboot-00+ */
-void * get_warmboot_addr(void){
-	static void *get_warmboot_addr = 0;
-	uint32_t *warmboot_addr;
-
-	printk("get_warmboot_addr\n");
-
-	if (unlikely(get_warmboot_addr == 0)){
-		get_warmboot_addr = remap_lowmem(0x1011A008, sizeof(*warmboot_addr));
-	}
-
-	return get_warmboot_addr;
-}
-EXPORT_SYMBOL(get_warmboot_addr);
-/* CORE-TH-S1_FOTA_Warmboot-00- */
-#endif
-
-//CORE-KH-DbgCfgTool-ForceTriggerPanic-00-a]
 /*
  * This is our default idle handler.
  */
@@ -313,7 +175,6 @@ void machine_power_off(void)
 	else
 	{
 		tsk = current;
-		dump_stack();
 	}
 
 	if(tsk->real_parent)
@@ -362,7 +223,6 @@ void machine_restart(char *cmd)
 	else
 	{
 		tsk = current;
-		dump_stack();
 	}
 
 	if(tsk->real_parent)
@@ -415,11 +275,6 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 		return;
 
 	printk("\n%s: %#lx:\n", name, addr);
-
-        if (addr > (unsigned long)high_memory) {
-          printk("large then high_memory:%p)\n", high_memory);
-          return;
-	}
 
 	/*
 	 * round address down to a 32 bit boundary

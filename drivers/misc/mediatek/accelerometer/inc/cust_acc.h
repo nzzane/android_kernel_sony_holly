@@ -18,5 +18,4 @@ struct acc_hw {
 };
 
 extern struct acc_hw *get_cust_acc_hw(void);
-struct acc_hw* get_accel_dts_func(const char *, struct acc_hw*);
 #endif

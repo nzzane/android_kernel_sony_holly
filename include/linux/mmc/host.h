@@ -157,8 +157,6 @@ struct mmc_host_ops {
 	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
 	void	(*hw_reset)(struct mmc_host *host);
 	void	(*card_event)(struct mmc_host *host);
-	
-	int (*device_power_control)(struct mmc_host *mmc, u32 power);
 };
 
 struct mmc_card;
@@ -373,11 +371,7 @@ struct mmc_host {
 	int			claim_cnt;	/* "claim" nesting count */
 
 	struct delayed_work	detect;
-#ifndef CONFIG_HAS_EARLYSUSPEND
-	struct wakeup_source detect_wake_lock;
-#else
 	struct wake_lock	detect_wake_lock;
-#endif
 	int			detect_change;	/* card detect flag */
 	struct mmc_slot		slot;
 
@@ -429,9 +423,6 @@ struct mmc_host {
 #ifdef CONFIG_MTK_EMMC_CACHE
 	struct mmc_flush_info	flush_info;
 #endif
-
-    	bool                        mount_failed_card;
-	bool		over_current_card;
 	unsigned long		private[0] ____cacheline_aligned;
 };
 

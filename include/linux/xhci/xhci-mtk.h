@@ -116,7 +116,6 @@ void mtk_xhci_reset(struct xhci_hcd *xhci);
 extern bool mtk_is_host_mode(void);
 
 #ifdef CONFIG_USB_MTK_DUALMODE
-extern void mtk_xhci_eint_iddig_default(void);//CONN-USB-JY-usb id polling-00
 extern int mtk_xhci_eint_iddig_init(void);
 extern void mtk_xhci_switch_init(void);
 extern void mtk_xhci_eint_iddig_deinit(void);

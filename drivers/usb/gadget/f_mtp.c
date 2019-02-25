@@ -58,10 +58,6 @@
 #define RX_REQ_MAX 2
 #define INTR_REQ_MAX 5
 
-/* vendor code */
-#define MSOS_VENDOR_CODE	0x08
-#define MSOS_GOOGLE_VENDOR_CODE	0x01
-
 /* ID for Microsoft MTP OS String */
 #define MTP_OS_STRING_ID   0xEE
 
@@ -345,7 +341,7 @@ static u8 mtp_os_string[] = {
 	/* Signature field: "MSFT100" */
 	'M', 0, 'S', 0, 'F', 0, 'T', 0, '1', 0, '0', 0, '0', 0,
 	/* vendor code */
-	MSOS_GOOGLE_VENDOR_CODE,
+	1,
 	/* padding */
 	0
 };
@@ -737,7 +733,7 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct mtp_dev *dev = _mtp_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0 && dev->state == STATE_BUSY)
+	if (req->status != 0)
 		dev->state = STATE_ERROR;
 
 	wake_up(&dev->read_wq);
@@ -932,12 +928,6 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 		dev->state = STATE_READY;
 		spin_unlock_irq(&dev->lock);
 		return -ECANCELED;
-	} else if (dev->state == STATE_RESET) {
-		/* report a reset state to userspace */
-		dev->state = STATE_READY;
-		spin_unlock_irq(&dev->lock);
-		DBG(cdev, "mtp_read DEVICE RESET. State: %d.\n", dev->state);
-		return -ECONNRESET;
 	}
 	dev->state = STATE_BUSY;
 	spin_unlock_irq(&dev->lock);
@@ -999,8 +989,6 @@ done:
 	spin_lock_irq(&dev->lock);
 	if (dev->state == STATE_CANCELED)
 		r = -ECANCELED;
-	else if (dev->state == STATE_RESET)
-		r = -ECONNRESET;
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
@@ -1017,7 +1005,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	struct usb_request *req = 0;
 	ssize_t r = count;
 	unsigned xfer;
-	int sendZLP = 0;
+	/*int sendZLP = 0;*/
 	int ret;
 
 	DBG(cdev, "mtp_write(%zu)\n", count);
@@ -1048,14 +1036,14 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	/* we need to send a zero length packet to signal the end of transfer
 	 * if the transfer size is aligned to a packet boundary.
 	 */
-	if ((count & (dev->ep_in->maxpacket - 1)) == 0)
-		sendZLP = 1;
+	/*if ((count & (dev->ep_in->maxpacket - 1)) == 0)
+		sendZLP = 1;*/
 
-	while (count > 0 || sendZLP) {
+	while (count > 0 /*|| sendZLP*/) {
 
 		/* so we exit after sending ZLP */
-		if (count == 0)
-			sendZLP = 0;
+		/*if (count == 0)
+			sendZLP = 0;*/
 
 		if (dev->state != STATE_BUSY) {
 			DBG(cdev, "mtp_write dev->error\n");
@@ -1132,7 +1120,7 @@ static void send_file_work(struct work_struct *data)
 	int64_t count;
 	int xfer, ret, hdr_size;
 	int r = 0;
-	int sendZLP = 0;
+	/*int sendZLP = 0;*/
 
 	#define IOMAXNUM	5
 	int iotimeMax[IOMAXNUM] = {0};
@@ -1157,13 +1145,13 @@ static void send_file_work(struct work_struct *data)
 	/* we need to send a zero length packet to signal the end of transfer
 	 * if the transfer size is aligned to a packet boundary.
 	 */
-	if ((count & (dev->ep_in->maxpacket - 1)) == 0)
-		sendZLP = 1;
+	/*if ((count & (dev->ep_in->maxpacket - 1)) == 0)
+		sendZLP = 1;*/
 
-	while (count > 0 || sendZLP) {
+	while (count > 0 /*|| sendZLP*/) {
 		/* so we exit after sending ZLP */
-		if (count == 0)
-			sendZLP = 0;
+		/*if (count == 0)
+			sendZLP = 0;*/
 
 		/* get an idle tx request to use */
 		req = 0;
@@ -1197,10 +1185,7 @@ static void send_file_work(struct work_struct *data)
 		if (hdr_size) {
 			/* prepend MTP data header */
 			header = (struct mtp_data_header *)req->buf;
-			if (count >= 0xFFFFFFFF)
-				header->length = __cpu_to_le32(0xFFFFFFFF);
-			else
-				header->length = __cpu_to_le32(count);
+			header->length = __cpu_to_le32(count);
 			header->type = __cpu_to_le16(2); /* data packet */
 			header->command = __cpu_to_le16(dev->xfer_command);
 			header->transaction_id =
@@ -1444,7 +1429,7 @@ static void receive_file_work(struct work_struct *data)
 				count -= read_req->actual;
 
 
-			#if defined(CONFIG_MTK_SHARED_SDCARD)
+			#if defined(MTK_SHARED_SDCARD)
 				total_size += read_req->actual;
 				DBG(cdev, "%s, line %d: count = %lld, total_size = %lld, read_req->actual = %d, read_req->length= %d\n", __func__, __LINE__, count, total_size, read_req->actual, read_req->length);
 			#endif
@@ -1785,14 +1770,14 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
-		if (ctrl->bRequest == MSOS_GOOGLE_VENDOR_CODE
+		if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 5)) {
 			value = (w_length < sizeof(mtp_ext_prop_desc) ?
 					w_length : sizeof(mtp_ext_prop_desc));
 			DBG(cdev, "vendor request: Property OS Feature, w_length = %d, value = %d \n", w_length, value);
 			memcpy(cdev->req->buf, &mtp_ext_prop_desc, value);
-		} else if (ctrl->bRequest == MSOS_GOOGLE_VENDOR_CODE
+		} else if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 4)) {
 			switch(dev->curr_mtp_func_index)
@@ -1838,12 +1823,11 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			DBG(cdev, "vendor request: Extended OS Feature, w_length = %d, value = %d, dev->curr_mtp_func_index = %d\n", w_length, value, dev->curr_mtp_func_index);
 		}
 
-	}
-	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
+	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
 		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
-		if (ctrl->bRequest == MTP_REQ_CANCEL
+		if (ctrl->bRequest == MTP_REQ_CANCEL 
 #ifndef CONFIG_MTK_TC1_FEATURE
                                 && w_index == 0
 #endif
@@ -1868,26 +1852,9 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			 * the contents.
 			 */
 			value = w_length;
-		} else if (ctrl->bRequest == MTP_REQ_RESET && w_index == 0
-			&& w_value == 0) {
-			DBG(cdev, "MTP_REQ_RESET\n");
-
-			spin_lock_irqsave(&dev->lock, flags);
-			/* Flushing the buffers as mentioned in MTP spec */
-			usb_ep_fifo_flush(dev->ep_out);
-			dev->state = STATE_RESET;
-			wake_up(&dev->read_wq);
-			wake_up(&dev->write_wq);
-			spin_unlock_irqrestore(&dev->lock, flags);
-
-			/* We need to queue a request to read the remaining
-			 *  bytes, but we don't actually need to look at
-			 * the contents.
-			 */
-			value = w_length;
 		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
 #ifndef CONFIG_MTK_TC1_FEATURE
-				&& w_index == 0
+				&& w_index == 0 
 #endif
                                 && w_value == 0) {
 			struct mtp_device_status *status = cdev->req->buf;
@@ -1937,9 +1904,9 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			DBG(dev->cdev, "%s: status->wCode = 0x%x, under MTP_REQ_GET_DEVICE_STATUS\n", __func__, status->wCode);
 			spin_unlock_irqrestore(&dev->lock, flags);
 			value = sizeof(*status);
-		} else if (ctrl->bRequest == MTP_REQ_RESET
+		} else if (ctrl->bRequest == MTP_REQ_RESET 
 #ifndef CONFIG_MTK_TC1_FEATURE
-                        && w_index == 0
+                        && w_index == 0 
 #endif
                         && w_value == 0) {
 			struct work_struct *work;
@@ -1989,7 +1956,7 @@ static int ptp_ctrlrequest(struct usb_composite_dev *cdev,
 		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
-		if (ctrl->bRequest == MTP_REQ_CANCEL
+		if (ctrl->bRequest == MTP_REQ_CANCEL 
 #ifndef CONFIG_MTK_TC1_FEATURE
             && w_index == 0
 #endif
@@ -2016,7 +1983,7 @@ static int ptp_ctrlrequest(struct usb_composite_dev *cdev,
 			value = w_length;
 		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
 #ifndef CONFIG_MTK_TC1_FEATURE
-				&& w_index == 0
+				&& w_index == 0 
 #endif
                                 && w_value == 0) {
 			struct mtp_device_status *status = cdev->req->buf;
@@ -2066,9 +2033,9 @@ static int ptp_ctrlrequest(struct usb_composite_dev *cdev,
 			DBG(dev->cdev, "%s: status->wCode = 0x%x, under MTP_REQ_GET_DEVICE_STATUS\n", __func__, status->wCode);
 			spin_unlock_irqrestore(&dev->lock, flags);
 			value = sizeof(*status);
-		} else if (ctrl->bRequest == MTP_REQ_RESET
+		} else if (ctrl->bRequest == MTP_REQ_RESET 
 #ifndef CONFIG_MTK_TC1_FEATURE
-                        && w_index == 0
+                        && w_index == 0 
 #endif
                         && w_value == 0) {
 			struct work_struct *work;

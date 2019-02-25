@@ -17,16 +17,9 @@
 #include "imx214otp.h"
 //#include <asm/system.h>  // for SMP
 #include <linux/dma-mapping.h>
-#ifdef CONFIG_COMPAT
-/* 64 bit */
-#include <linux/fs.h>
-#include <linux/compat.h>
-#endif
-
-extern u8 OTPData214[OTP_SIZE]; /*MM-SL-AddIMX214EEPROM-00+ */
 
 
-//#define CAM_CALGETDLT_DEBUG
+#define CAM_CALGETDLT_DEBUG
 //#define CAM_CAL_DEBUG
 #ifdef CAM_CAL_DEBUG
 #define CAM_CALDB printk
@@ -35,8 +28,8 @@ extern u8 OTPData214[OTP_SIZE]; /*MM-SL-AddIMX214EEPROM-00+ */
 #endif
 
 static DEFINE_SPINLOCK(g_CAM_CALLock); // for SMP
-#define CAM_CAL_I2C_BUSNUM 2 /*MM-CL-ReadIMX214EEPROM-00* */
-extern u8 OTPData214[];/*MM-CL-ReadIMX214EEPROM-00* */
+#define CAM_CAL_I2C_BUSNUM 0
+extern u8 OTPData[];
 
 /*******************************************************************************
 *
@@ -45,12 +38,12 @@ extern u8 OTPData214[];/*MM-CL-ReadIMX214EEPROM-00* */
 /*******************************************************************************
 *
 ********************************************************************************/
-#define CAM_CAL_DRVNAME "CAM_CAL214_DRV" /*MM-CL-ReadIMX214EEPROM-00* */
+#define CAM_CAL_DRVNAME "CAM_CAL_DRV"
 #define CAM_CAL_I2C_GROUP_ID 0
 /*******************************************************************************
 *
 ********************************************************************************/
-static struct i2c_board_info __initdata kd_cam_cal_dev={ I2C_BOARD_INFO(CAM_CAL_DRVNAME, 0xA0>>1)};/*MM-CL-ReadIMX214EEPROM-00* */
+static struct i2c_board_info __initdata kd_cam_cal_dev={ I2C_BOARD_INFO(CAM_CAL_DRVNAME, 0x6d>>1)};
 
 static struct i2c_client * g_pstI2Cclient = NULL;
 
@@ -69,7 +62,7 @@ static atomic_t g_CAM_CALatomic;
 
 #define LSCOTPDATASIZE 512
 
-static int otp_flag=0;/*MM-CL-ReadIMX214EEPROM-00* */
+int otp_flag=0;
 
 static kal_uint8 lscotpdata[LSCOTPDATASIZE];
 extern int iReadReg(u16 a_u2Addr , u8 * a_puBuff , u16 i2cId);
@@ -114,7 +107,7 @@ static int iWriteCAM_CAL(u16 a_u2Addr  , u32 a_u4Bytes, u8 puDataInBytes)
 //Address: 2Byte, Data: 1Byte
 static int iReadCAM_CAL(u16 a_u2Addr, u32 ui4_length, u8 * a_puBuff)
 {
-    #if 1 /*MM-SL-AddIMX214EEPROM-01* */
+    #if 0
     int  i4RetValue = 0;
     char puReadCmd[2] = {(char)(a_u2Addr >> 8) , (char)(a_u2Addr & 0xFF)};
 	g_pstI2Cclient->addr = (IMX214OTP_DEVICE_ID>> 1);
@@ -131,7 +124,7 @@ static int iReadCAM_CAL(u16 a_u2Addr, u32 ui4_length, u8 * a_puBuff)
 
     //CAM_CALDB("[CAM_CAL] i2c_master_recv \n");
     i4RetValue = i2c_master_recv(g_pstI2Cclient, (char *)a_puBuff, ui4_length);
-	CAM_CALDB("[CAM_CAL][iReadCAM_CAL-imx214] Read 0x%x=0x%x \n", a_u2Addr, a_puBuff[0]);
+	CAM_CALDB("[CAM_CAL][iReadCAM_CAL] Read 0x%x=0x%x \n", a_u2Addr, a_puBuff[0]);
     if (i4RetValue != ui4_length)
     {
         CAM_CALDB("[CAM_CAL] I2C read data failed!! \n");
@@ -154,7 +147,7 @@ static int iReadCAM_CAL(u16 a_u2Addr, u32 ui4_length, u8 * a_puBuff)
     return 0;
 }
 
-static int iReadCAM_CAL_8(u8 a_u2Addr, u8 * a_puBuff, u16 i2c_id)/*MM-CL-ReadIMX214EEPROM-00* */
+int iReadCAM_CAL_8(u8 a_u2Addr, u8 * a_puBuff, u16 i2c_id)
 {
     int  i4RetValue = 0;
     char puReadCmd[1] = {(char)(a_u2Addr)};
@@ -175,7 +168,7 @@ static int iReadCAM_CAL_8(u8 a_u2Addr, u8 * a_puBuff, u16 i2c_id)/*MM-CL-ReadIMX
     }
 
     i4RetValue = i2c_master_recv(g_pstI2Cclient, (char *)a_puBuff, 1);
-	CAM_CALDB("[CAM_CAL][iReadCAM_CAL] Read 0x%X%X=0x%X \n", i2c_id,a_u2Addr, a_puBuff[0]);
+	CAM_CALDB("[CAM_CAL][iReadCAM_CAL] Read 0x%x=0x%x \n", a_u2Addr, a_puBuff[0]);
     if (i4RetValue != 1)
     {
         CAM_CALDB("[CAM_CAL] I2C read data failed!! \n");
@@ -272,7 +265,7 @@ kal_bool check_IMX214_otp_valid_LSC_Page(kal_uint8 page)
  if(otp_flag){
 
 	for(i=0;i<Outdatalen;i++)
-		pOutputdata[i]=OTPData214[i];/*MM-CL-ReadIMX214EEPROM-00* */
+		pOutputdata[i]=OTPData[i];
  }
 else{
  	
@@ -323,7 +316,7 @@ else{
 		u8 readbuff, base_add;
 		int ret ;
 		//base_add=(address/10)*16+(address%10);
-
+			
 		CAM_CALDB("[CAM_CAL]ENTER page:0x%x address:0x%x buffersize:%d\n ",page, address, buffersize);
 		if (IMX214_GotoPage(page))
 		{
@@ -334,7 +327,6 @@ else{
 				*(iBuffer+i) =(unsigned char)readbuff;
 			}
 		}
-
 }
 
 //Burst Write Data
@@ -342,105 +334,68 @@ static int iWriteData(unsigned int  ui4_offset, unsigned int  ui4_length, unsign
 {
 }
 
-/*MM-SL-AddIMX214EEPROM-01*{ */
 //Burst Read Data
-static int iReadData(kal_uint16 ui4_offset, unsigned int  ui4_length, unsigned char * pinputdata)/*MM-CL-ReadIMX214EEPROM-00* */
+ int iReadData(kal_uint16 ui4_offset, unsigned int  ui4_length, unsigned char * pinputdata)
 {
    int  i4RetValue = 0;
-	int	i4ResidueDataLength;
-	u32 u4IncOffset = 0;
-	u32 u4CurrentOffset;
-	u8 * pBuff;
+    kal_uint8 page = 0, pageS=0,pageE=1;;
+	//1. check which page is valid
 	
+	if(ui4_length ==1)
+    {
+       if(check_IMX214_otp_valid_LSC_Page(page))
 		
-	if (ui4_offset + ui4_length >= 0x3073){
-		CAM_CALDB("[CAM_CAL] Read Error!! 5BCH02P1 not supprt address >= 0x3073!! \n" );
+	    IMX214_ReadOtp(page, ui4_offset, pinputdata, ui4_length);
+   	   else
+   		{
+	   		 CAM_CALDB("[CAM_CAL]No LSC OTP Data!\n");
 	  		 return -1;
         }
 	   	
-		
-	i4ResidueDataLength = (int)ui4_length;
-	u4CurrentOffset = ui4_offset;
-	pBuff = pinputdata;
-	CAM_CALDB("[CAM_CAL] iReadData, i4ResidueDataLength = %d \n", i4ResidueDataLength );
-	do{
-		if(i4ResidueDataLength >= 8){
-			
-			i4RetValue = iReadCAM_CAL((u16)u4CurrentOffset, 8, pBuff);
-			if (i4RetValue != 0){
-				CAM_CALDB("[CAM_CAL] I2C iReadData failed!! \n");
-	  		 return -1;
-        }
-			u4IncOffset += 1;//8;
-			i4ResidueDataLength -= 1;//8;
-			u4CurrentOffset = ui4_offset + u4IncOffset;
-			pBuff = pinputdata + u4IncOffset;
    	}
-		else{
-			i4RetValue = iReadCAM_CAL((u16)u4CurrentOffset, i4ResidueDataLength, pBuff);
-			if (i4RetValue != 0){
-				CAM_CALDB("[CAM_CAL] I2C iReadData failed!! \n");
-	  		 return -1;
-        }
-			u4IncOffset += 1;//8;
-			i4ResidueDataLength -= 1;//8;
-			u4CurrentOffset = ui4_offset + u4IncOffset;
-			pBuff = pinputdata + u4IncOffset;
-			//break;
-   	}
-	}while (i4ResidueDataLength > 0);
-
-   return 0;
-	}
-/*MM-SL-AddIMX214EEPROM-01*} */
-
-/*MM-SL-AddIMX214EEPROM-01*{ */
-/*MM-CL-ReadIMX214EEPROM-00+{ */
-int iReadData214(kal_uint16 ui4_offset, unsigned int  ui4_length, unsigned char * pinputdata)
-{
-    kal_uint8 page = 0;
-    kal_uint16 i = 0;
-    kal_uint16 j = 0;
-    u8 readbuff, base_add;
-    int ret ;
-    CAM_CALDB("[CAM_CAL] iReadData214 Start\n" );
-
-	ret= iReadCAM_CAL_8(0,&readbuff,(0xA1));
-
-	if (readbuff == 1){
-		CAM_CALDB("[CAM_CAL] iReadData214 - DP module\n" );
-
-    for(j = 0; j <= 7; j++)
+	else if(ui4_length ==6)
     {
-        CAM_CALDB("[CAM_CAL]ENTER page:0xA%X \n ",(1+j*2));//A1
-
-        for(i = 0; i < 256; i++)
-        {
-            ret= iReadCAM_CAL_8(i,&readbuff,(0xA1+j*2));
-            //CAM_CALDB("[CAM_CAL]address+i = 0x%x,readbuff = 0x%x\n",i,readbuff );
-            *(pinputdata+i+j*256) =(unsigned char)readbuff;
+       if(check_IMX214_otp_valid_AWBPage())
+		
+	    IMX214_ReadOtp(page, ui4_offset, pinputdata, ui4_length);
+   	   else
+   		{
+	   		 CAM_CALDB("[CAM_CAL]No AWB OTP Data!\n");
+	  		 return -1;
         }
-    }
-	}else{
-		CAM_CALDB("[CAM_CAL] iReadData214 - After SP module\n" );	
-		iReadData(0x00, 2048, OTPData214);	
+	   	
+   	}
+	else if(ui4_length ==2)
+    {
+       if(check_IMX214_otp_valid_AFPage())
+		
+	    IMX214_ReadOtp(page, ui4_offset, pinputdata, ui4_length);
+   	   else
+   		{
+	   		 CAM_CALDB("[CAM_CAL]No AF OTP Data!\n");
+	  		 return -1;
+        }
+	   	
+   	}
+	else{
+
+		#if 1
+		CAM_CALDB("[CAM_CAL]Read LSC data 452bit!\n");
+
+		if(IMX214_Read_LSC_Otp(pageS,pageE,ui4_length,pinputdata))
+			CAM_CALDB("[CAM_CAL]LSC OTP Data Read Sucess!\n");
+		else
+		#endif
+			CAM_CALDB("[CAM_CAL]LSC OTP Data Read Fail!\n");
 	}
+    //2. read otp
 
-    CAM_CALDB("[CAM_CAL] iReadData214 done\n" );
-    return 0;
+    for(i4RetValue = 0;i4RetValue<ui4_length;i4RetValue++){
+    CAM_CALDB( "[[CAM_CAL]]pinputdata[%d]=%x\n", i4RetValue,*(pinputdata+i4RetValue));}
+    CAM_CALDB(" [[CAM_CAL]]page = %d,ui4_length = %d,ui4_offset =%d\n ",page,ui4_length,ui4_offset);
+    CAM_CALDB("[S24EEPORM] iReadData done\n" );
+   return 0;
 }
-/*MM-CL-ReadIMX214EEPROM-00+} */
-/*MM-SL-AddIMX214EEPROM-01*} */
-
-/*MM-SL-AddIMX214EEPROM-00+{ */
-int iReadData214_copy(kal_uint16 ui4_offset, unsigned int  ui4_length, unsigned char * pinputdata)
-{
-    memcpy(pinputdata, OTPData214+ui4_offset, ui4_length);
-    CAM_CALDB("[CAM_CAL]pinputdata=%x, OTPData214[ui4_offset] = %x\n", (u8)*pinputdata, *(OTPData214+ui4_offset));
-
-	return 0; 
-}
-/*MM-SL-AddIMX214EEPROM-00+} */
 
 /*******************************************************************************
 *
@@ -484,7 +439,7 @@ static long CAM_CAL_Ioctl(
 
         if(_IOC_WRITE & _IOC_DIR(a_u4Command))
         {
-            if(copy_from_user((u8 *) pBuff , (u8 *)compat_ptr(a_u4Param), sizeof(stCAM_CAL_INFO_STRUCT)))
+            if(copy_from_user((u8 *) pBuff , (u8 *) a_u4Param, sizeof(stCAM_CAL_INFO_STRUCT)))
             {    //get input structure address
                 kfree(pBuff);
                 CAM_CALDB("[S24CAM_CAL] ioctl copy from user failed\n");
@@ -494,17 +449,17 @@ static long CAM_CAL_Ioctl(
     }
 
     ptempbuf = (stCAM_CAL_INFO_STRUCT *)pBuff;
-    pWorkingBuff = (u8*)kmalloc(sizeof(u8)*ptempbuf->u4Length,GFP_KERNEL); 
+    pWorkingBuff = (u8*)kmalloc(ptempbuf->u4Length,GFP_KERNEL); 
     if(NULL == pWorkingBuff)
     {
         kfree(pBuff);
         CAM_CALDB("[S24CAM_CAL] ioctl allocate mem failed\n");
         return -ENOMEM;
     }
-     //CAM_CALDB("[S24CAM_CAL] init Working buffer address 0x%8x  command is 0x%8x\n", (u32)pWorkingBuff, (u32)a_u4Command);
+     CAM_CALDB("[S24CAM_CAL] init Working buffer address 0x%8x  command is 0x%8x\n", (u32)pWorkingBuff, (u32)a_u4Command);
 
  
-    if(copy_from_user((u8*)pWorkingBuff ,  (void*)compat_ptr(ptempbuf->pu1Params), sizeof(u8)*ptempbuf->u4Length))
+    if(copy_from_user((u8*)pWorkingBuff ,  (u8*)ptempbuf->pu1Params, ptempbuf->u4Length))
     {
         kfree(pBuff);
         kfree(pWorkingBuff);
@@ -540,10 +495,9 @@ static long CAM_CAL_Ioctl(
 #endif     
             CAM_CALDB("[CAM_CAL] offset %d \n", ptempbuf->u4Offset);
             CAM_CALDB("[CAM_CAL] length %d \n", ptempbuf->u4Length);
-           // CAM_CALDB("[CAM_CAL] Before read Working buffer address 0x%8x \n", (u32)pWorkingBuff);
+            CAM_CALDB("[CAM_CAL] Before read Working buffer address 0x%8x \n", (u32)pWorkingBuff);
 			otp_flag=1;
-            //i4RetValue = iReadData((u16)ptempbuf->u4Offset, ptempbuf->u4Length, pWorkingBuff);
-            i4RetValue = iReadData214_copy((u16)ptempbuf->u4Offset, ptempbuf->u4Length, pWorkingBuff); /*MM-SL-AddIMX230EEPROM-00+ */
+            i4RetValue = iReadData((u16)ptempbuf->u4Offset, ptempbuf->u4Length, pWorkingBuff);
 			
             CAM_CALDB("[S24CAM_CAL] After read Working buffer data  0x%4x \n", *pWorkingBuff);
 
@@ -572,7 +526,7 @@ static long CAM_CAL_Ioctl(
     {
         //copy data to user space buffer, keep other input paremeter unchange.
         CAM_CALDB("[S24CAM_CAL] to user length %d \n", ptempbuf->u4Length);
-        //CAM_CALDB("[S24CAM_CAL] to user  Working buffer address 0x%8x \n", (u32)pWorkingBuff);
+        CAM_CALDB("[S24CAM_CAL] to user  Working buffer address 0x%8x \n", (u32)pWorkingBuff);
         if(copy_to_user((u8 __user *) ptempbuf->pu1Params , (u8 *)pWorkingBuff , ptempbuf->u4Length))
         {
             kfree(pBuff);
@@ -586,84 +540,6 @@ static long CAM_CAL_Ioctl(
     kfree(pWorkingBuff);
     return i4RetValue;
 }
-
-/*MM-SL-AddIMX214EEPROM-00+{ */
-#ifdef CONFIG_COMPAT
-static int compat_put_cal_info_struct(
-            COMPAT_stCAM_CAL_INFO_STRUCT __user *data32,
-            stCAM_CAL_INFO_STRUCT __user *data)
-{
-    compat_uptr_t p;
-    compat_uint_t i;
-    int err;
-
-    err = get_user(i, &data->u4Offset);
-    err |= put_user(i, &data32->u4Offset);
-    err |= get_user(i, &data->u4Length);
-    err |= put_user(i, &data32->u4Length);
-    /* Assume pointer is not change */
-#if 1
-    err |= get_user(p, &data->pu1Params);
-    err |= put_user(p, &data32->pu1Params);
-#endif
-    return err;
-}
-static int compat_get_cal_info_struct(
-            COMPAT_stCAM_CAL_INFO_STRUCT __user *data32,
-            stCAM_CAL_INFO_STRUCT __user *data)
-{
-    compat_uptr_t p;
-    compat_uint_t i;
-    int err;
-
-    err = get_user(i, &data32->u4Offset);
-    err |= put_user(i, &data->u4Offset);
-    err |= get_user(i, &data32->u4Length);
-    err |= put_user(i, &data->u4Length);
-    err |= get_user(p, &data32->pu1Params);
-    err |= put_user(compat_ptr(p), &data->pu1Params);
-
-    return err;
-}
-
-static long CAM_CAL_IMX214_Ioctl_Compat(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	long ret;
-	
-	COMPAT_stCAM_CAL_INFO_STRUCT __user *data32;
-	stCAM_CAL_INFO_STRUCT __user *data;
-	int err;
-	CAM_CALDB("[CAMERA SENSOR] CAM_CAL_IMX214_Ioctl_Compat,%p %p 0x%8x ioc size %d\n",filp->f_op ,filp->f_op->unlocked_ioctl,cmd,_IOC_SIZE(cmd) );
-	
-	if (!filp->f_op || !filp->f_op->unlocked_ioctl)
-		return -ENOTTY;
-
-	switch (cmd) {
-	
-		case COMPAT_CAM_CALIOC_G_READ:
-		{
-			data32 = compat_ptr(arg);
-			data = compat_alloc_user_space(sizeof(*data));
-			if (data == NULL)
-				return -EFAULT;
-
-			err = compat_get_cal_info_struct(data32, data);
-			if (err)
-				return err;
-
-			ret = filp->f_op->unlocked_ioctl(filp, CAM_CALIOC_G_READ,(unsigned long)data);
-			err = compat_put_cal_info_struct(data32, data);
-	
-			if(err != 0)
-				CAM_CALDB("[CAMERA SENSOR] compat_put_acdk_sensor_getinfo_struct failed\n");
-			return ret;
-		}
-		default:
-			return -ENOIOCTLCMD;
-	}
-}
-#endif
-/*MM-SL-AddIMX214EEPROM-00+} */
 
 
 static u32 g_u4Opened = 0;
@@ -714,12 +590,8 @@ static const struct file_operations g_stCAM_CAL_fops =
     .owner = THIS_MODULE,
     .open = CAM_CAL_Open,
     .release = CAM_CAL_Release,
-    .unlocked_ioctl = CAM_CAL_Ioctl,
-/*MM-SL-AddIMX214EEPROM-00+{ */
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = CAM_CAL_IMX214_Ioctl_Compat,//CAM_CAL_Ioctl,
-#endif
-/*MM-SL-AddIMX214EEPROM-00+} */    
+    //.ioctl = CAM_CAL_Ioctl
+    .unlocked_ioctl = CAM_CAL_Ioctl
 };
 
 #define CAM_CAL_DYNAMIC_ALLOCATE_DEVNO 1
@@ -770,7 +642,7 @@ inline static int RegisterCAM_CALCharDrv(void)
         return -EAGAIN;
     }
 
-    CAM_CAL_class = class_create(THIS_MODULE, "IMX214_CAM_CALdrv"); /*MM-SL-AddIMX214EEPROM-00* */
+    CAM_CAL_class = class_create(THIS_MODULE, "CAM_CALdrv");
     if (IS_ERR(CAM_CAL_class)) {
         int ret = PTR_ERR(CAM_CAL_class);
         CAM_CALDB("Unable to create class, err = %d\n", ret);

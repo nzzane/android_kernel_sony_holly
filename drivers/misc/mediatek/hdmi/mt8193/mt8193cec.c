@@ -1,4 +1,4 @@
-#ifdef HDMI_MT8193_SUPPORT
+#ifdef CONFIG_MTK_MT8193_HDMI_SUPPORT
 
 #include <linux/interrupt.h>
 #include <linux/i2c.h>

@@ -457,7 +457,6 @@ struct rq {
 	struct sched_domain *sd;
 
 	unsigned long cpu_power;
-	unsigned long cpu_power_orig;
 
 	unsigned char idle_balance;
 	/* For active balancing */
@@ -832,6 +831,27 @@ extern int pull_rt_task(struct rq *this_rq);
 extern int mt_post_schedule(struct rq *rq);
 #endif
 
+#ifdef CONFIG_MT_RT_SCHED_LOG
+  #ifdef CONFIG_MT_RT_SCHED_DEBUG
+#define mt_rt_printf(x...) \
+ do{                    \
+        char strings[128]="";  \
+        snprintf(strings, 128, x); \
+        printk(KERN_NOTICE x);          \
+        trace_sched_rt_log(strings); \
+ }while (0)
+  #else
+#define mt_rt_printf(x...) \
+ do{                    \
+        char strings[128]="";  \
+        snprintf(strings, 128, x); \
+        trace_sched_rt_log(strings); \
+ }while (0)
+  #endif
+#else
+#define mt_rt_printf do {} while (0) 
+#endif
+
 #ifndef __ARCH_WANT_UNLOCKED_CTXSW
 static inline void prepare_lock_switch(struct rq *rq, struct task_struct *next)
 {
@@ -867,7 +887,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	 */
 	spin_acquire(&rq->lock.dep_map, 0, 0, _THIS_IP_);
 #ifdef CONFIG_MT_RT_SCHED
-	if (test_tsk_need_released(prev)) {
+	if(test_tsk_need_released(prev)){
 		clear_tsk_need_released(prev);
 		push_need_released_rt_task(rq, prev);
 	}
@@ -1426,3 +1446,15 @@ static inline int rq_cpu(const struct rq *rq) { return rq->cpu; }
 static inline int rq_cpu(const struct rq *rq) { return 0; }
 #endif
 
+static inline void account_reset_rq(struct rq *rq)
+{
+#ifdef CONFIG_IRQ_TIME_ACCOUNTING
+	rq->prev_irq_time = 0;
+#endif
+#ifdef CONFIG_PARAVIRT
+	rq->prev_steal_time = 0;
+#endif
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+	rq->prev_steal_time_rq = 0;
+#endif
+}

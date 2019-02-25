@@ -31,7 +31,7 @@ typedef enum {
 	AP = 0,
 	MD,
 	GPS,
-	AUX_USER_MAX	
+	ADC_USER_MAX	
 } upmu_adc_user_list_enum;
 //==============================================================================
 // PMIC Exported Function

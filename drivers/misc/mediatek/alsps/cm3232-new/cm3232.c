@@ -44,7 +44,7 @@
 #include <alsps.h>
 #include <linux/batch.h>
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
 #endif
 
@@ -106,7 +106,7 @@ struct cm3232_priv {
 	struct alsps_hw  *hw;
 	struct i2c_client *client;
 	struct work_struct	eint_work;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	struct work_struct init_done_work;
 #endif
 
@@ -815,7 +815,7 @@ int cm3232_setup_eint(struct i2c_client *client)
 /*-------------------------------MISC device related------------------------------------------*/
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static void cm3232_init_done_work(struct work_struct *work)
 {
     struct cm3232_priv *obj = cm3232_obj;
@@ -917,7 +917,7 @@ static int cm3232_irq_handler(void* data, uint len)
 
     return 0;
 }
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 
 /************************************************************/
@@ -1118,7 +1118,7 @@ static int cm3232_init_client(struct i2c_client *client)
 	}
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	res = SCP_sensorHub_rsp_registration(ID_LIGHT, cm3232_irq_handler);
 	if(res != 0)
 	{
@@ -1232,27 +1232,27 @@ static int cm3232_als_open_report_data(int open)
 static int cm3232_als_enable_nodata(int en)
 {
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     APS_LOG("cm3232_obj als enable value = %d\n", en);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.activate_req.sensorType = ID_LIGHT;
     req.activate_req.action = SENSOR_HUB_ACTIVATE;
     req.activate_req.enable = en;
     len = sizeof(req.activate_req);
     res = SCP_sensorHub_req_send(&req, &len, 1);
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(!cm3232_obj)
 	{
 		APS_ERR("cm3232_obj is null!!\n");
 		return -1;
 	}
 	res=cm3232_enable_als(cm3232_obj->client, en);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(res){
 		APS_ERR("als_enable_nodata is failed!!\n");
 		return -1;
@@ -1268,14 +1268,14 @@ static int cm3232_als_set_delay(u64 ns)
 static int cm3232_als_get_data(int* value, int* status)
 {
 	int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
     struct cm3232_priv *obj = NULL;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_LIGHT;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -1295,7 +1295,7 @@ static int cm3232_als_get_data(int* value, int* status)
         APS_LOG("value = %d\n", *value);
         //show data
 	}
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(!cm3232_obj)
 	{
 		APS_ERR("cm3232_obj is null!!\n");
@@ -1311,7 +1311,7 @@ static int cm3232_als_get_data(int* value, int* status)
 		*value = cm3232_get_als_value(obj, obj->als);
 		*status = SENSOR_STATUS_ACCURACY_MEDIUM;
 	}
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	return err;
 }
@@ -1343,9 +1343,9 @@ static int cm3232_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 	obj->hw = get_cust_alsps_hw();//get custom file data struct
 	
 	//INIT_WORK(&obj->eint_work, cm3232_eint_work);//modify for CM3232 polling mode.131012 xgt
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	INIT_WORK(&obj->init_done_work, cm3232_init_done_work);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	obj->client = client;
 	i2c_set_clientdata(client, obj);
@@ -1398,7 +1398,7 @@ static int cm3232_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 	als_ctl.enable_nodata = cm3232_als_enable_nodata;
 	als_ctl.set_delay  = cm3232_als_set_delay;
 	als_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	als_ctl.is_support_batch = obj->hw->is_batch_supported_als;
 #else
 	als_ctl.is_support_batch = false;

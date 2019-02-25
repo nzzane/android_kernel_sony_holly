@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
@@ -14,14 +15,14 @@
 #include <mach/mtk_eemcs_helper.h>
 
 #define mtk_cooler_mddtxpwr_dprintk_always(fmt, args...) \
-	do { pr_debug("thermal/cooler/mddtxpwr" fmt, ##args); } while (0)
+  do { xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mddtxpwr", fmt, ##args); } while(0)
 
 #define mtk_cooler_mddtxpwr_dprintk(fmt, args...) \
-	do { \
-		if (1 == cl_mddtxpwr_klog_on) { \
-			pr_debug("thermal/cooler/mddtxpwr" fmt, ##args); \
-		} \
-	} while (0)
+  do { \
+    if (1 == cl_mddtxpwr_klog_on) { \
+      xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mddtxpwr", fmt, ##args); \
+    } \
+  } while(0)
 
 #define MAX_NUM_INSTANCE_MTK_COOLER_MDDTXPWR  3
 

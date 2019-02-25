@@ -2,7 +2,7 @@
 #define _LINUX_SCHED_H
 
 #include <uapi/linux/sched.h>
-
+#include <linux/sched/prio.h>
 
 struct sched_param {
 	int sched_priority;
@@ -673,6 +673,8 @@ struct user_struct {
 	unsigned long mq_bytes;	/* How many bytes can be allocated to mqueue? */
 #endif
 	unsigned long locked_shm; /* How many pages of mlocked shm ? */
+	unsigned long unix_inflight;	/* How many files in flight in unix sockets */
+	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
 
 #ifdef CONFIG_KEYS
 	struct key *uid_keyring;	/* UID specific keyring */
@@ -1075,10 +1077,8 @@ struct sched_entity {
 	/* Per-entity load-tracking */
 	struct sched_avg	avg;
 #endif
-#if defined(CONFIG_MTPROF_CPUTIME) || defined(CONFIG_MT_RT_THROTTLE_MON)
-	u64			mtk_isr_time;
-#endif
 #ifdef CONFIG_MTPROF_CPUTIME
+	u64			mtk_isr_time;
 	int			mtk_isr_count;
 	struct mtk_isr_info  *mtk_isr;
 #endif
@@ -1123,26 +1123,26 @@ struct thread_group_info_t {
 
 #endif
 
-#ifdef CONFIG_MT_SCHED_TRACE
+#ifdef CONFIG_MT_SCHED_NOTICE
   #ifdef CONFIG_MT_SCHED_DEBUG
-#define mt_sched_printf(event,x...) \
- do{                    \
-	char strings[128] = "";  \
-	snprintf(strings, 128, x); \
-	pr_warn(x);          \
-	trace_##event(strings); \
- }while (0)
-  #else
-#define mt_sched_printf(event,x...) \
+#define mt_sched_printf(x...) \
  do{                    \
         char strings[128]="";  \
         snprintf(strings, 128, x); \
-        trace_##event(strings); \
+        printk(KERN_NOTICE x);          \
+        trace_sched_log(strings); \
  }while (0)
-  
+  #else
+#define mt_sched_printf(x...) \
+ do{                    \
+        char strings[128]="";  \
+        snprintf(strings, 128, x); \
+        trace_sched_log(strings); \
+ }while (0)
   #endif
+  
 #else
-#define mt_sched_printf(event, x...) do {} while (0)
+#define mt_sched_printf(x...) do {} while (0)
 #endif
 
 struct task_struct {
@@ -1282,7 +1282,6 @@ struct task_struct {
 
 	cputime_t utime, stime, utimescaled, stimescaled;
 	cputime_t gtime;
-	unsigned long long cpu_power;
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	struct cputime prev_cputime;
 #endif
@@ -1546,10 +1545,6 @@ struct task_struct {
 	unsigned int	sequential_io;
 	unsigned int	sequential_io_avg;
 #endif
-#ifdef CONFIG_PREEMPT_MONITOR
-	unsigned long preempt_dur;
-#endif
-
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
@@ -2055,6 +2050,14 @@ extern int sched_setscheduler(struct task_struct *, int,
 extern int sched_setscheduler_nocheck(struct task_struct *, int,
 				      const struct sched_param *);
 
+#ifdef CONFIG_MT_PRIO_TRACER
+extern void set_user_nice_core(struct task_struct *p, long nice);
+extern int sched_setscheduler_core(struct task_struct *, int,
+				   const struct sched_param *);
+extern int sched_setscheduler_nocheck_core(struct task_struct *, int,
+					   const struct sched_param *);
+#endif
+
 extern struct task_struct *idle_task(int cpu);
 /**
  * is_idle_task - is the specified task an idle task?
@@ -2250,6 +2253,11 @@ static inline void mmdrop(struct mm_struct * mm)
 
 /* mmput gets rid of the mappings and all user-space */
 extern void mmput(struct mm_struct *);
+/* same as above but performs the slow path from the async kontext. Can
+ * be called from the atomic context as well
+ */
+extern void mmput_async(struct mm_struct *);
+
 /* Grab a reference to a task's mm, if it is not already going away */
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*
@@ -2345,15 +2353,15 @@ static inline bool thread_group_leader(struct task_struct *p)
  * all we care about is that we have a task with the appropriate
  * pid, we don't actually care if we have the right task.
  */
-static inline int has_group_leader_pid(struct task_struct *p)
+static inline bool has_group_leader_pid(struct task_struct *p)
 {
-	return p->pid == p->tgid;
+	return task_pid(p) == p->signal->leader_pid;
 }
 
 static inline
-int same_thread_group(struct task_struct *p1, struct task_struct *p2)
+bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 {
-	return p1->tgid == p2->tgid;
+	return p1->signal == p2->signal;
 }
 
 static inline struct task_struct *next_thread(const struct task_struct *p)
@@ -2540,7 +2548,7 @@ static inline int test_tsk_need_resched(struct task_struct *tsk)
 	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
 }
 
-#if defined(CONFIG_MT_RT_SCHED)
+#if defined(CONFIG_MT_RT_SCHED) || defined(CONFIG_MT_RT_SCHED_LOG)
 static inline void set_tsk_need_released(struct task_struct *tsk)
 {
 	set_tsk_thread_flag(tsk, TIF_NEED_RELEASED);

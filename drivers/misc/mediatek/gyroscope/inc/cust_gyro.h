@@ -20,5 +20,4 @@ struct gyro_hw {
 };
 
 extern struct gyro_hw* get_cust_gyro_hw(void);
-struct gyro_hw* get_gyro_dts_func(const char *, struct gyro_hw*);
 #endif 

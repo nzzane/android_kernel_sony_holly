@@ -1,2 +1,3 @@
 obj-$(CONFIG_TRUSTONIC_TEE_SUPPORT) += classicdrm/
-obj-$(CONFIG_TRUSTONIC_TEE_SUPPORT) += modulardrm/
+#now moudlar drm driver is not ready
+#obj-$(CONFIG_TRUSTONIC_TEE_SUPPORT) += modulardrm/

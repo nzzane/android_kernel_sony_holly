@@ -38,12 +38,18 @@
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
-#include <linux/compat.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/compress_params.h>
 #include <sound/compress_offload.h>
 #include <sound/compress_driver.h>
+
+/* struct snd_compr_codec_caps overflows the ioctl bit size for some
+ * architectures, so we need to disable the relevant ioctls.
+ */
+#if _IOC_SIZEBITS < 14
+#define COMPR_CODEC_CAPS_OVERFLOW
+#endif
 
 /* TODO:
  * - add substream support for multiple devices in case of
@@ -428,6 +434,7 @@ out:
 	return retval;
 }
 
+#ifndef COMPR_CODEC_CAPS_OVERFLOW
 static int
 snd_compr_get_codec_caps(struct snd_compr_stream *stream, unsigned long arg)
 {
@@ -451,6 +458,7 @@ out:
 	kfree(caps);
 	return retval;
 }
+#endif /* !COMPR_CODEC_CAPS_OVERFLOW */
 
 /* revisit this with snd_pcm_preallocate_xxx */
 static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
@@ -481,7 +489,7 @@ static int snd_compress_check_input(struct snd_compr_params *params)
 {
 	/* first let's check the buffer parameter's */
 	if (params->buffer.fragment_size == 0 ||
-			params->buffer.fragments > SIZE_MAX / params->buffer.fragment_size)
+	    params->buffer.fragments > INT_MAX / params->buffer.fragment_size)
 		return -EINVAL;
 
 	/* now codec parameters */
@@ -789,9 +797,11 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	case _IOC_NR(SNDRV_COMPRESS_GET_CAPS):
 		retval = snd_compr_get_caps(stream, arg);
 		break;
+#ifndef COMPR_CODEC_CAPS_OVERFLOW
 	case _IOC_NR(SNDRV_COMPRESS_GET_CODEC_CAPS):
 		retval = snd_compr_get_codec_caps(stream, arg);
 		break;
+#endif
 	case _IOC_NR(SNDRV_COMPRESS_SET_PARAMS):
 		retval = snd_compr_set_params(stream, arg);
 		break;
@@ -837,42 +847,6 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-
-/*
- * ioctl32 compat
- */
-#ifdef CONFIG_COMPAT
-
-static long snd_compr_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	switch (_IOC_NR(cmd)) {
-	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):
-	case _IOC_NR(SNDRV_COMPRESS_GET_CAPS):
-	case _IOC_NR(SNDRV_COMPRESS_GET_CODEC_CAPS):
-	case _IOC_NR(SNDRV_COMPRESS_SET_PARAMS):
-	case _IOC_NR(SNDRV_COMPRESS_GET_PARAMS):
-	case _IOC_NR(SNDRV_COMPRESS_SET_METADATA):
-	case _IOC_NR(SNDRV_COMPRESS_GET_METADATA):
-	case _IOC_NR(SNDRV_COMPRESS_TSTAMP):
-	case _IOC_NR(SNDRV_COMPRESS_AVAIL):
-	case _IOC_NR(SNDRV_COMPRESS_PAUSE):
-	case _IOC_NR(SNDRV_COMPRESS_RESUME):
-	case _IOC_NR(SNDRV_COMPRESS_START):
-	case _IOC_NR(SNDRV_COMPRESS_STOP):
-	case _IOC_NR(SNDRV_COMPRESS_DRAIN):
-	case _IOC_NR(SNDRV_COMPRESS_PARTIAL_DRAIN):
-	case _IOC_NR(SNDRV_COMPRESS_NEXT_TRACK):
-        return file->f_op->unlocked_ioctl(file, cmd,arg);
-		break;
-
-	}
-
-}
-
-#else
-#define snd_compr_ioctl_compat   NULL
-#endif
-
 static const struct file_operations snd_compr_file_ops = {
 		.owner =	THIS_MODULE,
 		.open =		snd_compr_open,
@@ -880,7 +854,6 @@ static const struct file_operations snd_compr_file_ops = {
 		.write =	snd_compr_write,
 		.read =		snd_compr_read,
 		.unlocked_ioctl = snd_compr_ioctl,
-        .compat_ioctl = 	snd_compr_ioctl_compat,
 		.mmap =		snd_compr_mmap,
 		.poll =		snd_compr_poll,
 };

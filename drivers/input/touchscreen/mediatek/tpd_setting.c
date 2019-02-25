@@ -62,8 +62,3 @@ module_param(tpd_load_status, int, 00664);
 
 int tpd_em_asamp = 1;
 module_param(tpd_em_asamp, int, 00664);
-
-//SW-PROD-DH-TOUCH-PORTING-00+[
-int tpd_hw = 0;
-module_param(tpd_hw, int, 00664);
-//SW-PROD-DH-TOUCH-PORTING-00+]

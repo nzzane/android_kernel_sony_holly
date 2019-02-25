@@ -81,48 +81,48 @@
 #define RB_EMPTY(prb) ((prb)->write == (prb)->read)
 
 #define RB_INIT(prb, qsize) \
-do { \
-	(prb)->read = (prb)->write = 0; \
-	(prb)->size = (qsize); \
-} while (0)
+   { \
+   (prb)->read = (prb)->write = 0; \
+   (prb)->size = (qsize); \
+   }
 
 #define RB_PUT(prb, value) \
-do { \
-	if (!RB_FULL(prb)) { \
-		(prb)->queue[(prb)->write & RB_MASK(prb)] = value; \
-		++((prb)->write); \
-	} \
-	else { \
-		osal_assert(!RB_FULL(prb)); \
-	} \
-} while (0)
+{ \
+    if (!RB_FULL(prb)) { \
+	(prb)->queue[(prb)->write & RB_MASK(prb)] = value; \
+	++((prb)->write); \
+    } \
+    else { \
+	osal_assert(!RB_FULL(prb)); \
+    } \
+}
 
 #define RB_GET(prb, value) \
-do { \
-	if (!RB_EMPTY(prb)) { \
-		value = (prb)->queue[(prb)->read & RB_MASK(prb)]; \
-		++((prb)->read); \
-		if (RB_EMPTY(prb)) { \
-			(prb)->read = (prb)->write = 0; \
-		} \
+{ \
+    if (!RB_EMPTY(prb)) { \
+	value = (prb)->queue[(prb)->read & RB_MASK(prb)]; \
+	++((prb)->read); \
+	if (RB_EMPTY(prb)) { \
+	    (prb)->read = (prb)->write = 0; \
 	} \
-	else { \
-		value = NULL; \
-	} \
-} while (0)
+    } \
+    else { \
+	value = NULL; \
+    } \
+}
 
 #define RB_GET_LATEST(prb, value) \
-do { \
-	if (!RB_EMPTY(prb)) { \
-		value = (prb)->queue[RB_LATEST(prb) & RB_MASK(prb)]; \
-		if (RB_EMPTY(prb)) { \
-			(prb)->read = (prb)->write = 0; \
-		} \
+{ \
+    if (!RB_EMPTY(prb)) { \
+	value = (prb)->queue[RB_LATEST(prb) & RB_MASK(prb)]; \
+	if (RB_EMPTY(prb)) { \
+	    (prb)->read = (prb)->write = 0; \
 	} \
-	else { \
-		value = NULL; \
-	} \
-} while (0)
+    } \
+    else { \
+	value = NULL; \
+    } \
+}
 /*******************************************************************************
 *                    E X T E R N A L   R E F E R E N C E S
 ********************************************************************************
@@ -367,9 +367,6 @@ extern MTK_WCN_BOOL osal_op_is_wait_for_signal(P_OSAL_OP pOp);
 extern VOID osal_op_raise_signal(P_OSAL_OP pOp, INT32 result);
 
 extern UINT16 osal_crc16(const PUINT8 buffer, const UINT32 length);
-
-extern INT32 osal_ftrace_print(const PINT8 str, ...);
-extern INT32 osal_ftrace_print_ctrl(INT32 flag);
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************

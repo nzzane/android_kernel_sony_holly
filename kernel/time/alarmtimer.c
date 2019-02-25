@@ -15,11 +15,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-#ifdef pr_fmt
-#undef pr_fmt 
-#endif
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/time.h>
 #include <linux/hrtimer.h>
 #include <linux/timerqueue.h>
@@ -30,10 +25,11 @@
 #include <linux/posix-timers.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
+#include <linux/xlog.h>
 #include <linux/module.h>
 #include <mach/mtk_rtc.h>
 
-#define TIME_MYTAG	"Power/Time"
+#define XLOG_MYTAG	"Power/Alarm"
 
 #define ANDROID_ALARM_PRINT_INFO (1U << 0)
 #define ANDROID_ALARM_PRINT_IO (1U << 1)
@@ -45,7 +41,7 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define alarm_dbg(debug_level_mask, fmt, args...)				\
 do {									\
 	if (debug_mask & ANDROID_ALARM_PRINT_##debug_level_mask)	\
-			pr_debug(TIME_MYTAG fmt, ##args); \
+		xlog_printk(ANDROID_LOG_INFO, XLOG_MYTAG, fmt, ##args); \
 } while (0)
 
 /**
@@ -155,7 +151,7 @@ void alarm_set_power_on(struct timespec new_pwron_time, bool logo)
 	struct rtc_device *alarm_rtc_dev;
 //	ktime_t now;
 	
-	alarm_dbg(INFO, "alarm set power on\n");
+	printk("alarm set power on\n");
 	
 #ifdef RTC_PWRON_SEC
 	/* round down the second */

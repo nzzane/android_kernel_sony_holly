@@ -16,9 +16,11 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/mach/$(MTK_PLATFORM)/include/tru
 
 #Now drm is 32 only
 #ifeq ($(CONFIG_ARM64), y)
-#include $(srctree)/drivers/misc/mediatek/gud/Makefile.include
+#ccflags-y += -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/include \
+#             -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/public 
 #else
-include $(srctree)/drivers/misc/mediatek/gud/Makefile.include
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/include \
+             -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/public 
 #endif
 obj-y += secwidevine.o
 

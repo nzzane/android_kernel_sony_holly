@@ -18,7 +18,7 @@
 #include <linux/compat.h>
 #endif
 
-
+// in K2, main=3, sub=main2=1
 #define LENS_I2C_BUSNUM 0
 static struct i2c_board_info kd_lens_dev __initdata = { I2C_BOARD_INFO("AD5823", 0x6C) };
 
@@ -359,23 +359,18 @@ static int AD5823_Release(struct inode *a_pstInode, struct file *a_pstFile)
 {
 	AD5823DB("[AD5823] AD5823_Release - Start\n");
 
-	if (g_s4AD5823_Opened == 2) 
-    {
+	if (g_s4AD5823_Opened) {
+		AD5823DB("[AD5823] feee\n");
 		g_sr = 5;
 		s4AD5823_WriteReg(200);
 		msleep(10);
 		s4AD5823_WriteReg(100);
 		msleep(10);
-	}
-
-
-	if (g_s4AD5823_Opened) 
-    {
-		AD5823DB("[AD5823] feee\n");
 
 		spin_lock(&g_AD5823_SpinLock);
 		g_s4AD5823_Opened = 0;
 		spin_unlock(&g_AD5823_SpinLock);
+
 	}
 
 	AD5823DB("[AD5823] AD5823_Release - End\n");

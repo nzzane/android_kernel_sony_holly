@@ -5805,16 +5805,17 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 swap_buffers:
 	/* Swap primary and spare array */
 	thresholds->spare = thresholds->primary;
-	/* If all events are unregistered, free the spare array */
-	if (!new) {
-		kfree(thresholds->spare);
-		thresholds->spare = NULL;
-	}
 
 	rcu_assign_pointer(thresholds->primary, new);
 
 	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
+
+	/* If all events are unregistered, free the spare array */
+	if (!new) {
+		kfree(thresholds->spare);
+		thresholds->spare = NULL;
+	}
 unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
@@ -7027,7 +7028,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.allow_attach = mem_cgroup_allow_attach,
 	.bind = mem_cgroup_bind,
 	.base_cftypes = mem_cgroup_files,
-	.disabled = 1,	/* Disable it for performance workaround */
 	.early_init = 0,
 	.use_id = 1,
 };
@@ -7077,12 +7077,6 @@ static int __init mem_cgroup_init(void)
 	enable_swap_cgroup();
 	mem_cgroup_soft_limit_tree_init();
 	memcg_stock_init();
-#ifdef CONFIG_MEMCG_ZNDSWAP
-	dt_swapcache = 2560;
-	dt_writeback = 1024;
-	dt_filecache = totalram_pages;
-	/*dt_free = ;*/
-#endif
 	return 0;
 }
 subsys_initcall(mem_cgroup_init);

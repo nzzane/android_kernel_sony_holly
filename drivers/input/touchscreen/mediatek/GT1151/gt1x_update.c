@@ -1141,11 +1141,11 @@ void read_reg(u16 addr, int len)
 	while (len > 0) {
 		cur_len = (len > 16 ? 16 : len);
 		gt1x_i2c_read(addr + read_len, buffer, cur_len);
-		GTP_INFO("<<GTP-INF>> ");
+		printk("<<GTP-INF>> ");
 		for (i = 0; i < cur_len; i++) {
-			GTP_INFO("%02X ", buffer[i]);
+			printk("%02X ", buffer[i]);
 		}
-		GTP_INFO("\n");
+		printk("\n");
 		len -= cur_len;
 		read_len += cur_len;
 	}

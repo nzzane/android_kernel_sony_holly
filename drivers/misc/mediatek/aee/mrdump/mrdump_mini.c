@@ -404,31 +404,11 @@ void mrdump_mini_build_task_info(struct pt_regs *regs)
 	
 	/* Current panic user tasks */
 	sz = 0;
-
-
-//[somc][ramdump&mtbf]We should not skip pid 0 and 1.
-#if 0
 	while (tsk && (tsk->pid != 0) && (tsk->pid != 1)) {
 		/* FIXME: Check overflow ? */
 		sz += snprintf(symbol + sz, 128 - sz, "[%s, %d]", tsk->comm, tsk->pid);
 		tsk = tsk->real_parent;
 	}
-#else
-
-	while (tsk) {
-		sz += snprintf(symbol + sz, 128 - sz, "[%s, %d]", tsk->comm, tsk->pid);
-                printk("symbol %s \n",symbol);
-               /*tsk->comm max size 16B */
-               if(sz >= 100)
-                 break;
-
-               if(tsk && ((tsk->pid == 0) ||(tsk->pid == 1) ))
-                break;
-
-		tsk = tsk->real_parent;
-	}
-
-#endif
 	if (strncmp(cur_proc->process_path, symbol, sz) == 0)
 		return;
 	
@@ -448,15 +428,10 @@ void mrdump_mini_build_task_info(struct pt_regs *regs)
 		if (plen > 16) {
 			sz = snprintf(symbol, 128, "[<%p>] %pS\n",
 				 (void *)ipanic_stack_entries[i], (void *)ipanic_stack_entries[i]);
-
-			//[somc][ramdump&mtbf]used for mtbf mapping.
-			printk("stack: %s",symbol);
-
 			if (ALIGN(sz, 8) - sz) {
 				memset(symbol + sz - 1, ' ', ALIGN(sz, 8) - sz);
 				memset(symbol + ALIGN(sz, 8) - 1, '\n', 1);
 			}
-
 			if (ALIGN(sz, 8) <= plen)
 				memcpy(cur_proc->backtrace + ALIGN(off, 8), symbol, ALIGN(sz, 8));
 		}
@@ -661,11 +636,7 @@ static void __init mrdump_mini_elf_header_init(void)
 		return;
 	}
 	LOGE("mirdump: reserved %x+%lx->%p", MRDUMP_MINI_BUF_PADDR, (unsigned long)MRDUMP_MINI_HEADER_SIZE, mrdump_mini_ehdr);
-
-	if (MRDUMP_MINI_BUF_PADDR)
-	   	memset(mrdump_mini_ehdr, 0, MRDUMP_MINI_HEADER_SIZE + TASK_INFO_SIZE + PSTORE_SIZE);
-	else
-		memset(mrdump_mini_ehdr, 0, MRDUMP_MINI_HEADER_SIZE);
+	memset(mrdump_mini_ehdr, 0, MRDUMP_MINI_HEADER_SIZE);
 	fill_elf_header(&mrdump_mini_ehdr->ehdr, MRDUMP_MINI_NR_SECTION);
 }
 

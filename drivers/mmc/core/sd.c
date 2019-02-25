@@ -291,8 +291,12 @@ static int mmc_read_switch(struct mmc_card *card)
 		return -ENOMEM;
 	}
 
-	/* Find out the supported Bus Speed Modes. */
-	err = mmc_sd_switch(card, 0, 0, 1, status);
+	/*
+	 * Find out the card's support bits with a mode 0 operation.
+	 * The argument does not matter, as the support bits do not
+	 * change with the arguments.
+	 */
+	err = mmc_sd_switch(card, 0, 0, 0, status);
 	if (err) {
 		/*
 		 * If the host or the card can't do the switch,
@@ -313,46 +317,8 @@ static int mmc_read_switch(struct mmc_card *card)
 
 	if (card->scr.sda_spec3) {
 		card->sw_caps.sd3_bus_mode = status[13];
-
-		/* Find out Driver Strengths supported by the card */
-		err = mmc_sd_switch(card, 0, 2, 1, status);
-		if (err) {
-			/*
-			 * If the host or the card can't do the switch,
-			 * fail more gracefully.
-			 */
-			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
-				goto out;
-
-			pr_warning("%s: problem reading "
-				"Driver Strength.\n",
-				mmc_hostname(card->host));
-			err = 0;
-
-			goto out;
-		}
-
+		/* Driver Strengths supported by the card */
 		card->sw_caps.sd3_drv_type = status[9];
-
-		/* Find out Current Limits supported by the card */
-		err = mmc_sd_switch(card, 0, 3, 1, status);
-		if (err) {
-			/*
-			 * If the host or the card can't do the switch,
-			 * fail more gracefully.
-			 */
-			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
-				goto out;
-
-			pr_warning("%s: problem reading "
-				"Current Limit.\n",
-				mmc_hostname(card->host));
-			err = 0;
-
-			goto out;
-		}
-
-		card->sw_caps.sd3_curr_limit = status[7];
 	}
 
 out:
@@ -1072,33 +1038,6 @@ free_card:
 }
 
 /*
- * Handle the detection and initialisation of a fake card.
- */
-static int mmc_sd_init_fake_card(struct mmc_host *host)
-{
-	struct mmc_card *card;
-	BUG_ON(!host);
-	WARN_ON(!host->claimed);	
-	/*
-	 * Allocate card structure.
-	 */
-	card = mmc_alloc_card(host, &sd_type);
-	if (IS_ERR(card))
-		return PTR_ERR(card);
-
-	card->type = MMC_TYPE_SD;
-	
-	/*
-	 * For native busses:  get card RCA and quit open drain mode.
-	 */
-	card->rca = 0x3; /*just a random value*/
-	card->csd.cmdclass |= 1<<2; 
-	host->card = card;
-	return 0;
-}
-
-
-/*
  * Host is being removed. Free up the current card.
  */
 static void mmc_sd_remove(struct mmc_host *host)
@@ -1283,10 +1222,10 @@ int mmc_attach_sd(struct mmc_host *host)
 	WARN_ON(!host->claimed);
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
-	mmc_sd_attach_bus_ops(host);
 	if (err)
-		goto err;
+		return err;
 
+	mmc_sd_attach_bus_ops(host);
 	if (host->ocr_avail_sd)
 		host->ocr_avail = host->ocr_avail_sd;
 
@@ -1369,28 +1308,6 @@ remove_card:
 	host->card = NULL;
 	mmc_claim_host(host);
 err:
-	if (host->over_current_card){
-		pr_err("[SD_DEBUG] sd init fail because of overcurrent\n");
-		err = mmc_sd_init_fake_card(host);
-		if (err){
-			pr_err("[SD_DEBUG] fake sd init fail\n");
-			goto fatal_err;
-		}
-		mmc_release_host(host);
-		err = mmc_add_card(host->card);
-		if (err){
-			pr_err("[SD_DEBUG] add fake sd failed");
-			mmc_release_host(host);
-			mmc_remove_card(host->card);
-			host->card = NULL;
-			mmc_claim_host(host);
-			goto fatal_err;
-		}
-		pr_err("[SD_DEBUG] added fake card for overcurrent\n");
-		mmc_claim_host(host);
-		return 0;
-	}
-fatal_err:
 	mmc_detach_bus(host);
 
 	pr_err("%s: error %d whilst initialising SD card\n",

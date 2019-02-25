@@ -1,34 +1,31 @@
-/*
-* Copyright (C) 2015 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef __MD32_HELPER_H__
 #define __MD32_HELPER_H__
 
-#include <linux/interrupt.h>
 struct md32_regs
 {
     void __iomem *sram;
     void __iomem *dtcm;
     void __iomem *cfg;
+#if 0
+    void __iomem *clkctrl;
+    void __iomem *mad;
+    void __iomem *intc;
+    void __iomem *timer;
+    void __iomem *i2c0;
+    void __iomem *i2c1;
+    void __iomem *i2c2;
+    void __iomem *gpio;
+    void __iomem *uart;
+    void __iomem *eint;
+    void __iomem *pmicwp;
+    void __iomem *spm;
+#endif
+//    struct device *dev;
     int irq;
 };
 
 extern struct md32_regs md32reg;
-extern irqreturn_t md32_irq_handler(int irq, void *dev_id);
+
 #define MD32_PTCM_SIZE 0x4000
 #define MD32_DTCM_SIZE 0x4000
 #define MD32_CFGREG_SIZE 0x100

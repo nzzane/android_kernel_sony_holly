@@ -28,11 +28,6 @@
 
 #include <linux/types.h>
 
-//CORE-KC-PMSWakelockInfo-00+[
-#define CONFIG_FIH_DUMP_WAKELOCK 1
-#define CONFIG_FIH_DUMP_PMS_WAKELOCK 1
-//CORE-KC-PMSWakelockInfo-00+]
-
 /**
  * struct wakeup_source - Representation of wakeup sources
  *

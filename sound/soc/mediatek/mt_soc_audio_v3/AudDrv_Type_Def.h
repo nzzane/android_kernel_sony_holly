@@ -19,6 +19,10 @@
  *
  *---------------------------------------------------------------------------
 ---
+ * $Revision: #1 $
+ * $Modtime:$
+ * $Log:$
+ *
  *
 
 *******************************************************************************/
@@ -26,7 +30,7 @@
 #ifndef AUDIO_TYPE_DEF_H
 #define AUDIO_TYPE_DEF_H
 
-/* Type re-definition */
+// Type re-definition
 #ifndef int8
 typedef signed char int8;
 #endif
@@ -60,3 +64,5 @@ typedef unsigned long long uint64;
 #endif
 
 #endif
+
+

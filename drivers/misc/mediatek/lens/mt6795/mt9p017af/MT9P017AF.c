@@ -348,26 +348,26 @@ static int MT9P017AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 {
 	unsigned int cnt = 0;
 
-	if (g_s4MT9P017AF_Opened == 2) 
-    {
+	if (g_s4MT9P017AF_Opened) {
 		moveMT9P017AF(g_u4MT9P017AF_INF);
 
-		while (g_i4MotorStatus) 
-        {
+		while (g_i4MotorStatus) {
 			msleep(1);
 			cnt++;
-			if (cnt > 1000) 
-            {
+			if (cnt > 1000) {
 				break;
 			}
 		}
-	}
-
-	if (g_s4MT9P017AF_Opened) {
 
 		spin_lock(&g_MT9P017AF_SpinLock);
+
 		g_s4MT9P017AF_Opened = 0;
+
 		spin_unlock(&g_MT9P017AF_SpinLock);
+
+		/* hwPowerDown(CAMERA_POWER_VCAM_A,"kd_camera_hw"); */
+
+		/* XGPT_Stop(g_GPTconfig.num); */
 	}
 
 	return 0;

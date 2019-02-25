@@ -22,7 +22,6 @@ struct device;
 /*
  * LED Core
  */
-#define CONFIG_LEDS_TRIGGERS   /* PERI-AH-LED-00+ */
 
 enum led_brightness {
 	LED_OFF		= 0,

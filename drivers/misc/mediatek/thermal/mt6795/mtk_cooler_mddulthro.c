@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
@@ -14,12 +15,12 @@
 extern int amddulthro_backoff(int level);
 
 #define mtk_cooler_mddulthro_dprintk_always(fmt, args...) \
-  do { pr_notice("thermal/cooler/mddulthro" fmt, ##args); } while(0)
+  do { xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mddulthro", fmt, ##args); } while(0)
 
 #define mtk_cooler_mddulthro_dprintk(fmt, args...) \
     do { \
         if (1 == cl_mddulthro_klog_on) { \
-            pr_notice("thermal/cooler/mddulthro" fmt, ##args); \
+            xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mddulthro", fmt, ##args); \
         } \
     } while(0)
 

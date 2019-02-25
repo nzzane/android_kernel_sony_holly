@@ -1,8 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 10
-SUBLEVEL = 72
+SUBLEVEL = 108
 EXTRAVERSION =
-NAME = TOSSUG Baby Fish
+NAME = END-OF-LIFE
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -192,8 +192,15 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 # "make" in the configured kernel build directory always uses that.
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
-ARCH		?= $(SUBARCH)
-CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
+#ARCH		?= $(SUBARCH)
+#CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
+ifeq ($(TARGET_ARCH), arm)
+ARCH		?= arm
+CROSS_COMPILE	?= arm-eabi-
+else
+ARCH		?= arm64
+CROSS_COMPILE	?= aarch64-linux-android-
+endif
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -241,7 +248,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -O2
 
 # Decide whether to build built-in, modular, or both.
@@ -374,7 +381,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -Werror=format -Werror=int-to-pointer-cast -Werror=pointer-to-int-cast
+		   -Werror=format -Werror=int-to-pointer-cast -Werror=pointer-to-int-cast \
+		   -std=gnu89
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -382,6 +390,13 @@ KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_AFLAGS_MODULE  := -DMODULE
 KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
+
+-include $(srctree)/$(MTK_PROJECT)_mtk_cust.mak
+#MTK_INC += -I$(MTK_ROOT_CUSTOM)/$(MTK_PROJECT)/common
+LINUXINCLUDE    += $(MTK_INC)
+KBUILD_CFLAGS   += $(MTK_CFLAGS) $(MTK_CDEFS) -fno-pic
+KBUILD_CPPFLAGS += $(MTK_CPPFLAGS) $(MTK_CPPDEFS)
+KBUILD_AFLAGS   += $(MTK_AFLAGS) $(MTK_ADEFS)
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
@@ -854,7 +869,9 @@ define filechk_utsrelease.h
 	  echo '"$(KERNELRELEASE)" exceeds $(uts_len) characters' >&2;    \
 	  exit 1;                                                         \
 	fi;                                                               \
-	(echo \#define UTS_RELEASE \"$(KERNELRELEASE)\";)
+	(echo \#define UTS_RELEASE \"$(KERNELRELEASE)\";                  \
+	echo \#define BUILD_INFO \"$(MTK_BUILD_VERNO)\";                  \
+	echo \#define BUILD_FINGERPRINT \"$(TARGET_PRODUCT)\";)
 endef
 
 define filechk_version.h
@@ -989,6 +1006,29 @@ PHONY += _modinst_post
 _modinst_post: _modinst_
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.fwinst obj=firmware __fw_modinst
 	$(call cmd,depmod)
+
+# MTK {
+# Target to install android modules
+
+AMODLIB = $(INSTALL_MOD_PATH)/lib/modules
+export AMODLIB
+AMODSYMLIB = $(INSTALL_MOD_PATH)/../symbols/system/lib/modules
+export AMODSYMLIB
+
+PHONY += android_modules_install
+android_modules_install: _android_modinst_
+
+PHONY += _android_modinst_
+_android_modinst_:
+	@if [ ! -d $(AMODLIB) ]; then \
+		mkdir -p $(AMODLIB); \
+	fi
+	@if [ ! -d $(AMODSYMLIB) ]; then \
+		mkdir -p $(AMODSYMLIB); \
+	fi
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.android.modinst
+# MTK }
+
 
 ifeq ($(CONFIG_MODULE_SIG), y)
 PHONY += modules_sign

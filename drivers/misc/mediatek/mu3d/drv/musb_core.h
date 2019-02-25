@@ -429,48 +429,6 @@ struct musb_context_registers {
 };
 #endif
 
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling-00+{
-//
-//---------------------------------------------------
-#define  ID_POLLING_TIMEOUT_DEFAULT		(30000)
-#define  ID_POLLING_TIMEOUT_MAX			(60000)
-#define  ID_POLLING_WAKE_LOCK_TIMEOUT_EXT	(1000)
-#define  SOMC_CHG_USBID_POLLING_INTERVAL_MS	(1000)
-
-
-struct somc_usb_id {
-
-#if defined(CONFIG_FB)
-	struct notifier_block	fb_notif;
-#endif
-	int			lcd_blanked;
-	int			gpio_id_low;
-	atomic_t		change_irq_enabled;
-	spinlock_t		change_irq_lock;
-	struct delayed_work	start_polling_delay;
-	struct delayed_work	stop_polling_delay;
-	struct workqueue_struct	*polling_wq;
-	bool			user_request_polling;
-	bool			avoid_first_usbid_change;
-	//struct wake_lock	wakelock_id_polling;
-	struct wakeup_source	wakeup_source_id_polling; //7.patch
-
-	/* Follwoings are pointers from qpnp-smbcharger */
-	void			*ctx;
-	bool			*otg_present;
-	int			*change_irq;
-};
-
-
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling-00+}
-//
-//---------------------------------------------------
-
-
 /*
  * struct musb - Driver instance data.
  */
@@ -639,7 +597,6 @@ struct musb {
 	u32 error_wQmuVal;
 	u32 error_wErrVal;
 #endif
-	struct somc_usb_id	usb_id;//CONN-USB-JY-usb id polling-00
 };
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
@@ -793,10 +750,6 @@ extern void usb_phy_recover(unsigned int clk_on);
 extern void usb_fake_powerdown(unsigned int clk_on);
 extern void connection_work(struct work_struct *data);
 extern void check_ltssm_work(struct work_struct *data);
-//CONN-USB-JY-usb id polling-00+{
-extern void somc_chg_usbid_start_polling_delay_work(struct work_struct *work);
-extern void somc_chg_usbid_stop_polling_delay_work(struct work_struct *work);
-//CONN-USB-JY-usb id polling-00+}
 #ifndef CONFIG_USBIF_COMPLIANCE
 extern void reconnect_work(struct work_struct *data);
 #endif

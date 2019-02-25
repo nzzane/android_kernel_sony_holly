@@ -32,18 +32,47 @@
 #include <mach/mt_idle.h>
 #include <mach/mt_boot.h>
 
-#include "sodi_mmp.h"
-
 //#define CCI400_CLOCK_SWITCH
+
+#define USING_XLOG
+
+#ifdef USING_XLOG
+#include <linux/xlog.h>
+
+#define IDLE_TAG     "Power/swap"
+
+#define idle_err(fmt, args...)       \
+    xlog_printk(ANDROID_LOG_ERROR, IDLE_TAG, fmt, ##args)
+#define idle_warn(fmt, args...)      \
+    xlog_printk(ANDROID_LOG_WARN, IDLE_TAG, fmt, ##args)
+#define idle_info(fmt, args...)      \
+    xlog_printk(ANDROID_LOG_INFO, IDLE_TAG, fmt, ##args)
+#define idle_dbg(fmt, args...)       \
+    xlog_printk(ANDROID_LOG_DEBUG, IDLE_TAG, fmt, ##args)
+#define idle_ver(fmt, args...)       \
+    xlog_printk(ANDROID_LOG_VERBOSE, IDLE_TAG, fmt, ##args)
+
+#else /* !USING_XLOG */
 
 #define IDLE_TAG     "[Power/swap] "
 
-#define idle_err(fmt, args...)		pr_err(IDLE_TAG fmt, ##args)
-#define idle_warn(fmt, args...)		pr_warn(IDLE_TAG fmt, ##args)
-#define idle_info(fmt, args...)		pr_warn(IDLE_TAG fmt, ##args)
-#define idle_dbg(fmt, args...)		pr_warn(IDLE_TAG fmt, ##args)
-#define idle_ver(fmt, args...)		pr_warn(IDLE_TAG fmt, ##args)	/* pr_debug show nothing */
+#define idle_err(fmt, args...)       \
+    printk(KERN_ERR IDLE_TAG);           \
+    printk(KERN_CONT fmt, ##args)
+#define idle_warn(fmt, args...)      \
+    printk(KERN_WARNING IDLE_TAG);       \
+    printk(KERN_CONT fmt, ##args)
+#define idle_info(fmt, args...)      \
+    printk(KERN_NOTICE IDLE_TAG);        \
+    printk(KERN_CONT fmt, ##args)
+#define idle_dbg(fmt, args...)       \
+    printk(KERN_INFO IDLE_TAG);          \
+    printk(KERN_CONT fmt, ##args)
+#define idle_ver(fmt, args...)       \
+    printk(KERN_DEBUG IDLE_TAG);         \
+    printk(KERN_CONT fmt, ##args)
 
+#endif
 
 #define idle_gpt GPT4
 
@@ -197,12 +226,9 @@ static unsigned int     soidle_timer_left2;
 #ifndef CONFIG_SMP
 static unsigned int     soidle_timer_cmp;
 #endif
-static unsigned int	soidle_log_level = 1; /* 0: full log, 1: reduced log, others: no log */
 static unsigned int     soidle_time_critera = 26000; //FIXME: need fine tune
-static unsigned int     soidle_block_time_critera = 30000; /* default 30sec */
 static unsigned long    soidle_cnt[NR_CPUS] = {0};
 static unsigned long    soidle_block_cnt[NR_CPUS][NR_REASONS] = {{0}};
-static unsigned long long soidle_block_prev_time;
 /*DeepIdle*/
 static unsigned int     dpidle_block_mask[NR_GRPS] = {0x0};
 static unsigned int     dpidle_timer_left;
@@ -210,7 +236,6 @@ static unsigned int     dpidle_timer_left2;
 #ifndef CONFIG_SMP
 static unsigned int     dpidle_timer_cmp;
 #endif
-static unsigned int	dpidle_log_level = 1; /* 0: full log, 1: reduced log, others: no log */
 static unsigned int     dpidle_time_critera = 26000;
 static unsigned int     dpidle_block_time_critera = 30000;//default 30sec
 static unsigned long    dpidle_cnt[NR_CPUS] = {0};
@@ -225,33 +250,6 @@ static unsigned long    mcidle_cnt[NR_CPUS] = {0};
 static unsigned long    mcidle_block_cnt[NR_CPUS][NR_REASONS] = {{0}};
 u64                     mcidle_timer_before_wfi[NR_CPUS];
 static unsigned int 	idle_spm_lock = 0;
-
-static unsigned long long idle_block_log_prev_time;
-static unsigned int idle_block_log_time_criteria = 5000; /* 5 sec */
-static char             log_buf[500];
-
-/* Workaround of static analysis defect*/
-int idle_gpt_get_cnt(unsigned int id, unsigned int *ptr)
-{
-	unsigned int val[2] = {0};
-	int ret = 0;
-
-	ret = gpt_get_cnt(id, val);
-	*ptr = val[0];
-
-	return ret;
-}
-
-int idle_gpt_get_cmp(unsigned int id, unsigned int *ptr)
-{
-	unsigned int val[2] = {0};
-	int ret = 0;
-
-	ret = gpt_get_cmp(id, val);
-	*ptr = val[0];
-
-	return ret;
-}
 
 static long int idle_get_current_time_ms(void)
 {
@@ -320,9 +318,6 @@ extern int disp_od_is_enabled(void);
 bool soidle_can_enter(int cpu)
 {
     int reason = NR_REASONS;
-	int i = 0;
-	unsigned long long soidle_block_curr_time = 0;
-	char *p;
 
 #ifdef CONFIG_SMP
     if ((atomic_read(&is_in_hotplug) == 1)||(num_online_cpus() != 1)) {
@@ -367,45 +362,12 @@ bool soidle_can_enter(int cpu)
 
 
 out:
-	if (reason < NR_REASONS) {
-		if (soidle_block_prev_time == 0)
-			soidle_block_prev_time = idle_get_current_time_ms();
-
-		soidle_block_curr_time = idle_get_current_time_ms();
-		if (((soidle_block_curr_time - soidle_block_prev_time) > soidle_block_time_critera)
-			&& ((soidle_block_curr_time - idle_block_log_prev_time) > idle_block_log_time_criteria)) {
-			if (smp_processor_id() == 0) {
-				/* soidle,rgidle count */
-				p = log_buf;
-				p += sprintf(p, "CNT(soidle,rgidle): ");
-				for (i = 0; i < nr_cpu_ids; i++)
-					p += sprintf(p, "[%d] = (%lu,%lu), ", i, soidle_cnt[i], rgidle_cnt[i]);
-				idle_warn("%s\n", log_buf);
-
-				/* block category */
-				p = log_buf;
-				p += sprintf(p, "soidle_block_cnt: ");
-				for (i = 0; i < NR_REASONS; i++)
-					p += sprintf(p, "[%s] = %lu, ", reason_name[i], soidle_block_cnt[cpu][i]);
-				idle_warn("%s\n", log_buf);
-
-				p = log_buf;
-				p += sprintf(p, "soidle_block_mask: ");
-				for (i = 0; i < NR_GRPS; i++)
-					p += sprintf(p, "0x%08x, ", soidle_block_mask[i]);
-				idle_warn("%s\n", log_buf);
-
-				memset(soidle_block_cnt, 0, sizeof(soidle_block_cnt));
-				soidle_block_prev_time = idle_get_current_time_ms();
-				idle_block_log_prev_time = soidle_block_prev_time;
-			}
-		}
-		soidle_block_cnt[cpu][reason]++;
-		return false;
-	} else {
-		soidle_block_prev_time = idle_get_current_time_ms();
-		return true;
-	}
+    if (reason < NR_REASONS) {
+        soidle_block_cnt[cpu][reason]++;
+        return false;
+    } else {
+        return true;
+    }
 }
 
 void soidle_before_wfi(int cpu)
@@ -435,8 +397,8 @@ void soidle_after_wfi(int cpu)
     } else {
         /* waked up by other wakeup source */
         unsigned int cnt, cmp;
-		idle_gpt_get_cnt(idle_gpt, &cnt);
-		idle_gpt_get_cmp(idle_gpt, &cmp);
+        gpt_get_cnt(idle_gpt, &cnt);
+        gpt_get_cmp(idle_gpt, &cmp);
         if (unlikely(cmp < cnt)) {
             idle_err("[%s]GPT%d: counter = %10u, compare = %10u\n", __func__,
                     idle_gpt + 1, cnt, cmp);
@@ -538,7 +500,7 @@ static void go_to_mcidle(int cpu)
         mcidle_cnt[cpu]+=1;
     if(g_SPM_MCDI_Abnormal_WakeUp!=g_pre_SPM_MCDI_Abnormal_WakeUp)
     {
-	pr_err("SPM-MCDI Abnormal %x\n", g_SPM_MCDI_Abnormal_WakeUp);
+        printk("SPM-MCDI Abnormal %x\n",g_SPM_MCDI_Abnormal_WakeUp);
         g_pre_SPM_MCDI_Abnormal_WakeUp = g_SPM_MCDI_Abnormal_WakeUp;
     }
 }
@@ -599,7 +561,6 @@ static bool dpidle_can_enter(void)
     int reason = NR_REASONS;
     int i = 0;
     unsigned long long dpidle_block_curr_time = 0;
-	char *p;
 
     if (!mt_cpufreq_earlysuspend_status_get()){
         reason = BY_VTG;
@@ -645,45 +606,44 @@ static bool dpidle_can_enter(void)
 #endif
 
 out:
-	if (reason < NR_REASONS) {
-		if (dpidle_block_prev_time == 0)
-			dpidle_block_prev_time = idle_get_current_time_ms();
+    if (reason < NR_REASONS) {
+        if( dpidle_block_prev_time == 0 )
+            dpidle_block_prev_time = idle_get_current_time_ms();
 
-		dpidle_block_curr_time = idle_get_current_time_ms();
-		if (((dpidle_block_curr_time - dpidle_block_prev_time) > dpidle_block_time_critera)
-			&& ((dpidle_block_curr_time - idle_block_log_prev_time) > idle_block_log_time_criteria)) {
-			if (smp_processor_id() == 0) {
-				/* dpidle,rgidle count */
-				p = log_buf;
-				p += sprintf(p, "CNT(dpidle,rgidle): ");
-				for (i = 0; i < nr_cpu_ids; i++)
-					p += sprintf(p, "[%d] = (%lu,%lu), ", i, dpidle_cnt[i], rgidle_cnt[i]);
-				idle_warn("%s\n", log_buf);
+        dpidle_block_curr_time = idle_get_current_time_ms();
+        if((dpidle_block_curr_time - dpidle_block_prev_time) > dpidle_block_time_critera)
+        {
+            if ((smp_processor_id() == 0))
+            {
+                for (i = 0; i < nr_cpu_ids; i++) {
+                    idle_ver("dpidle_cnt[%d]=%lu, rgidle_cnt[%d]=%lu\n",
+                            i, dpidle_cnt[i], i, rgidle_cnt[i]);
+                }
 
-				/* block category */
-				p = log_buf;
-				p += sprintf(p, "dpidle_block_cnt: ");
-				for (i = 0; i < NR_REASONS; i++)
-					p += sprintf(p, "[%s] = %lu, ", reason_name[i], dpidle_block_cnt[i]);
-				idle_warn("%s\n", log_buf);
+                for (i = 0; i < NR_REASONS; i++) {
+                    idle_ver("[%d]dpidle_block_cnt[%s]=%lu\n", i, reason_name[i],
+                            dpidle_block_cnt[i]);
+                }
 
-				p = log_buf;
-				p += sprintf(p, "dpidle_block_mask: ");
-				for (i = 0; i < NR_GRPS; i++)
-					p += sprintf(p, "0x%08x, ", dpidle_block_mask[i]);
-				idle_warn("%s\n", log_buf);
+                for (i = 0; i < NR_GRPS; i++) {
+                    idle_ver("[%02d]dpidle_condition_mask[%-8s]=0x%08x\t\t"
+                            "dpidle_block_mask[%-8s]=0x%08x\n", i,
+                            grp_get_name(i), dpidle_condition_mask[i],
+                            grp_get_name(i), dpidle_block_mask[i]);
+                }
+                memset(dpidle_block_cnt, 0, sizeof(dpidle_block_cnt));
+                dpidle_block_prev_time = idle_get_current_time_ms();
 
-				memset(dpidle_block_cnt, 0, sizeof(dpidle_block_cnt));
-				dpidle_block_prev_time = idle_get_current_time_ms();
-				idle_block_log_prev_time = dpidle_block_prev_time;
-			}
-		}
-		dpidle_block_cnt[reason]++;
-		return false;
-	} else {
-		dpidle_block_prev_time = idle_get_current_time_ms();
-		return true;
-	}
+            }
+
+
+        }
+        dpidle_block_cnt[reason]++;
+        return false;
+    } else {
+        dpidle_block_prev_time = idle_get_current_time_ms();
+        return true;
+    }
 
 }
 
@@ -741,8 +701,8 @@ void spm_dpidle_after_wfi(void)
         } else {
             /* waked up by other wakeup source */
             unsigned int cnt, cmp;
-		idle_gpt_get_cnt(idle_gpt, &cnt);
-		idle_gpt_get_cmp(idle_gpt, &cmp);
+            gpt_get_cnt(idle_gpt, &cnt);
+            gpt_get_cmp(idle_gpt, &cmp);
             if (unlikely(cmp < cnt)) {
                 idle_err("[%s]GPT%d: counter = %10u, compare = %10u\n", __func__,
                         idle_gpt + 1, cnt, cmp);
@@ -992,78 +952,15 @@ static u32 slp_spm_SODI_flags = {
 	0
 };
 
-//#define DEFAULT_MMP_ENABLE
-#ifdef DEFAULT_MMP_ENABLE
-extern void MMProfileEnable(int enable);
-extern void MMProfileStart(int start);
-#endif
-
-static SODI_MMP_Events_t SODI_MMP_Events;
-
-void init_sodi_mmp_events(void)
-{
-    if (SODI_MMP_Events.SODI == 0)
-    {
-        SODI_MMP_Events.SODI = MMProfileRegisterEvent(MMP_RootEvent, "SODI");
-        SODI_MMP_Events.sodi_enable = MMProfileRegisterEvent(SODI_MMP_Events.SODI, "sodi_enable");
-        SODI_MMP_Events.self_refresh_cnt = MMProfileRegisterEvent(SODI_MMP_Events.SODI, "self_refresh_cnt");
-        SODI_MMP_Events.sodi_status  = MMProfileRegisterEvent(SODI_MMP_Events.SODI, "sodi_status");				  
-			
-        MMProfileEnableEventRecursive(SODI_MMP_Events.SODI, 1);
-        MMProfileEnableEventRecursive(SODI_MMP_Events.sodi_enable, 1);       
-        MMProfileEnableEventRecursive(SODI_MMP_Events.self_refresh_cnt, 1);
-        MMProfileEnableEventRecursive(SODI_MMP_Events.sodi_status, 1);
-    }
-}
-
-SODI_MMP_Events_t * sodi_mmp_get_events(void)
-{
-    return &SODI_MMP_Events;
-}
-
-void sodi_mmp_init(void)
-{
-#ifdef DEFAULT_MMP_ENABLE
-    /* printk("sodi_mmp_init\n"); */
-    MMProfileEnable(1);
-    init_sodi_mmp_events();
-    MMProfileStart(1);
-#endif
-}
-
 static inline int soidle_handler(int cpu)
 {
-	static unsigned int soidle_count;
-
     if (idle_switch[IDLE_TYPE_SO]) {
         if (soidle_can_enter(cpu)) {
             //printk("SPM-Enter SODI\n");
-
-            #ifdef DEFAULT_MMP_ENABLE
-            MMProfileLogEx(sodi_mmp_get_events()->sodi_enable, MMProfileFlagStart, 0, 0);
-            #endif //DEFAULT_MMP_ENABLE
-
-		spm_go_to_sodi(slp_spm_SODI_flags, soidle_log_level);
-
-            #ifdef DEFAULT_MMP_ENABLE
-            MMProfileLogEx(sodi_mmp_get_events()->sodi_enable, MMProfileFlagEnd, 0, spm_read(SPM_PCM_PASR_DPD_3));
-            #endif //DEFAULT_MMP_ENABLE
-
+            spm_go_to_sodi(slp_spm_SODI_flags, 0);
 #ifdef CONFIG_SMP
-		if (soidle_log_level == 0) {
-			/* full log */
-			idle_ver("SO:timer_left=%d, timer_left2=%d, delta=%d\n",
-					soidle_timer_left, soidle_timer_left2,
-					soidle_timer_left - soidle_timer_left2);
-		} else if (soidle_log_level == 1) {
-			/* reduced log */
-			if (((soidle_count % 100) == 0) || ((soidle_count % 100) == 1)) {
-				idle_ver("SO:timer_left=%d, timer_left2=%d, delta=%d, %d\n",
-						soidle_timer_left, soidle_timer_left2,
-						soidle_timer_left - soidle_timer_left2, soidle_count);
-			}
-			soidle_count++;
-		}
+            idle_ver("SO:timer_left=%d, timer_left2=%d, delta=%d\n",
+                soidle_timer_left, soidle_timer_left2, soidle_timer_left-soidle_timer_left2);
 #else
             idle_ver("SO:timer_left=%d, timer_left2=%d, delta=%d,timeout val=%d\n",
                 soidle_timer_left, soidle_timer_left2, soidle_timer_left2-soidle_timer_left,soidle_timer_cmp-soidle_timer_left);
@@ -1111,29 +1008,16 @@ static inline void dpidle_post_handler(void)
 
 static inline int dpidle_handler(int cpu)
 {
-	static unsigned int dpidle_count;
     int ret = 0;
     if (idle_switch[IDLE_TYPE_DP]) {
         if (dpidle_can_enter()) {
             dpidle_pre_handler();
-		spm_go_to_dpidle(slp_spm_deepidle_flags, dpidle_log_level);
+            spm_go_to_dpidle(slp_spm_deepidle_flags, 0);
             dpidle_post_handler();
             ret = 1;
 #ifdef CONFIG_SMP
-		if (soidle_log_level == 0) {
-			/* full log */
-			idle_ver("DP:timer_left=%d, timer_left2=%d, delta=%d\n",
-				dpidle_timer_left, dpidle_timer_left2,
-				dpidle_timer_left - dpidle_timer_left2);
-		} else if (soidle_log_level == 1) {
-			/* reduced log */
-			if (((dpidle_count % 100) == 0) || ((dpidle_count % 100) == 1)) {
-				idle_ver("DP:timer_left=%d, timer_left2=%d, delta=%d, %d\n",
-					dpidle_timer_left, dpidle_timer_left2,
-					dpidle_timer_left - dpidle_timer_left2, dpidle_count);
-			}
-			dpidle_count++;
-		}
+            idle_ver("DP:timer_left=%d, timer_left2=%d, delta=%d\n",
+                dpidle_timer_left, dpidle_timer_left2, dpidle_timer_left-dpidle_timer_left2);
 #else
             idle_ver("DP:timer_left=%d, timer_left2=%d, delta=%d, timeout val=%d\n",
                 dpidle_timer_left, dpidle_timer_left2, dpidle_timer_left2-dpidle_timer_left,dpidle_timer_cmp-dpidle_timer_left);
@@ -1288,7 +1172,6 @@ static ssize_t soidle_state_show(struct kobject *kobj,
     p += sprintf(p, "en_so_by_bit:  echo enable id > /sys/power/soidle_state\n");
     p += sprintf(p, "dis_so_by_bit: echo disable id > /sys/power/soidle_state\n");
     p += sprintf(p, "modify tm_cri: echo time value(dec) > /sys/power/soidle_state\n");
-	p += sprintf(p, "log level: echo loglevel 0/1/2 > /sys/power/soidle_state\n");
 
     len = p - buf;
     return len;
@@ -1309,8 +1192,6 @@ static ssize_t soidle_state_store(struct kobject *kobj,
             disable_soidle_by_bit(param);
         } else if (!strcmp(cmd, "time")) {
             soidle_time_critera = param;
-	} else if (!strcmp(cmd, "loglevel")) {
-		soidle_log_level = param;
         }
         return n;
     } else if (sscanf(buf, "%d", &param) == 1) {
@@ -1355,7 +1236,6 @@ static ssize_t dpidle_state_show(struct kobject *kobj,
     p += sprintf(p, "dis_dp_by_bit: echo disable id > /sys/power/dpidle_state\n");
     p += sprintf(p, "modify tm_cri: echo time value(dec) > /sys/power/dpidle_state\n");
     p += sprintf(p, "bypass cg:     echo bypass 1/0 > /sys/power/dpidle_state\n");
-	p += sprintf(p, "log level: echo loglevel 0/1/2 > /sys/power/dpidle_state\n");
 
     len = p - buf;
     return len;
@@ -1378,8 +1258,6 @@ static ssize_t dpidle_state_store(struct kobject *kobj,
             dpidle_time_critera = param;
         } else if (!strcmp(cmd, "bypass")) {
             dpidle_by_pass_cg = param;
-	} else if (!strcmp(cmd, "loglevel")) {
-		dpidle_log_level = param;
         }
 
         return n;

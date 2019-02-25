@@ -16,7 +16,7 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
-
+// in K2, main=3, sub=main2=1
 #define LENS_I2C_BUSNUM 3
 static struct i2c_board_info kd_lens_dev __initdata = { I2C_BOARD_INFO("OV8825AF", 0x18) };
 
@@ -260,8 +260,8 @@ static int OV8825AF_Open(struct inode *a_pstInode, struct file *a_pstFile)
 /* Q1 : Try release multiple times. */
 static int OV8825AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 {
-	if (g_s4OV8825AF_Opened == 2) 
-    {
+	if (g_s4OV8825AF_Opened) {
+		OV8825AFDB("[OV8825AF] feee\n");
 		g_sr = 5;
 
 		if (g_u4CurrPosition > 700) {
@@ -298,16 +298,12 @@ static int OV8825AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 			s4OV8825AF_WriteReg(100);
 			msleep(3);
 		}
-	}
-
-	if (g_s4OV8825AF_Opened) 
-    {
-		OV8825AFDB("[OV8825AF] feee\n");
 
 		spin_lock(&g_OV8825AF_SpinLock);
 		g_s4OV8825AF_Opened = 0;
 		spin_unlock(&g_OV8825AF_SpinLock);
-	}    
+
+	}
 
 	return 0;
 }

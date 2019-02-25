@@ -45,7 +45,7 @@
 
 #include <alsps.h>
 #include <linux/batch.h>
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
 #endif
 /******************************************************************************
@@ -171,7 +171,7 @@ struct epl2182_priv
     struct i2c_client *client;
     struct work_struct  eint_work;
 	struct work_struct data_work;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct work_struct init_done_work;
 #endif
     /*i2c address group*/
@@ -522,7 +522,7 @@ static int epl2182_get_als_value(struct epl2182_priv *obj, u16 als)
 static int set_psensor_intr_threshold(uint16_t low_thd, uint16_t high_thd)
 {
     int ret = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     EPL2182_CUST_DATA *pCustData;
     int len;
@@ -541,7 +541,7 @@ static int set_psensor_intr_threshold(uint16_t low_thd, uint16_t high_thd)
     len = offsetof(SCP_SENSOR_HUB_SET_CUST_REQ, custData) + sizeof(pCustData->setPSThreshold);
 
     ret = SCP_sensorHub_req_send(&data, &len, 1);
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
     struct epl2182_priv *epld = epl2182_obj;
     struct i2c_client *client = epld->client;
     uint8_t high_msb ,high_lsb, low_msb, low_lsb;
@@ -557,7 +557,7 @@ static int set_psensor_intr_threshold(uint16_t low_thd, uint16_t high_thd)
     elan_epl2182_I2C_Write(client,REG_3,W_SINGLE_BYTE,0x02,high_msb);
     elan_epl2182_I2C_Write(client,REG_4,W_SINGLE_BYTE,0x02,low_lsb);
     elan_epl2182_I2C_Write(client,REG_5,W_SINGLE_BYTE,0x02,low_msb);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     return ret;
 }
@@ -714,7 +714,7 @@ long epl2182_read_ps(struct i2c_client *client, u16 *data)
 
 
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static void alsps_init_done_work(struct work_struct *work)
 {
     struct epl2182_priv *obj = epl2182_obj;
@@ -769,7 +769,7 @@ static void alsps_init_done_work(struct work_struct *work)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 
 void epl2182_eint_func(void)
 {
@@ -837,12 +837,12 @@ static int alsps_irq_handler(void* data, uint len)
 
     return 0;
 }
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 /*----------------------------------------------------------------------------*/
 static void epl2182_eint_work(struct work_struct *work)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     int res = 0;
 
     res = ps_report_interrupt_data(gRawData.ps_state);
@@ -850,7 +850,7 @@ static void epl2182_eint_work(struct work_struct *work)
     {
         APS_ERR("epl2182_eint_work err: %d\n", res);
     }
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
     struct epl2182_priv *epld = g_epl2182_ptr;
     int err;
 	uint8_t read_data[2];
@@ -899,7 +899,7 @@ exit:
 		mt_eint_unmask(CUST_EINT_ALS_NUM);
 #endif //#ifndef FPGA_EARLY_PORTING
 		}
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 }
 
 
@@ -907,13 +907,13 @@ exit:
 /*----------------------------------------------------------------------------*/
 int epl2182_setup_eint(struct i2c_client *client)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     int err = 0;
 
     err = SCP_sensorHub_rsp_registration(ID_PROXIMITY, alsps_irq_handler);
 
    
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
     struct epl2182_priv *obj = i2c_get_clientdata(client);
 
     APS_LOG("epl2182_setup_eint\n");
@@ -935,7 +935,7 @@ int epl2182_setup_eint(struct i2c_client *client)
 	mt_eint_unmask(CUST_EINT_ALS_NUM);
 #endif //#ifndef FPGA_EARLY_PORTING
     
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
    return 0;
 
@@ -985,7 +985,7 @@ static int epl2182_init_client(struct i2c_client *client)
 static void epl2182_check_ps_data(struct work_struct *work)
 {
 
-   #if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+   #ifdef CUSTOM_KERNEL_SENSORHUB
     int res = 0;
 
     res = ps_report_interrupt_data(gRawData.ps_state);
@@ -1189,7 +1189,7 @@ static int set_psensor_threshold(struct i2c_client *client)
 	struct epl2182_priv *obj = i2c_get_clientdata(client);
  
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     EPL2182_CUST_DATA *pCustData;
 	int len;
@@ -1235,7 +1235,7 @@ static long epl2182_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 	int ps_result;
 	int ps_cali;
 	int threshold[2];
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     EPL2182_CUST_DATA *pCustData;
     int len;
@@ -1243,7 +1243,7 @@ static long epl2182_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
     data.set_cust_req.sensorType = ID_PROXIMITY;
     data.set_cust_req.action = SENSOR_HUB_SET_CUST;
     pCustData = (EPL2182_CUST_DATA *)(&data.set_cust_req.custData);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     //APS_LOG("---epl2182_ioctll- ALSPS_SET_PS_CALIBRATION  = %x, cmd = %x........\r\n", ALSPS_SET_PS_CALIBRATION, cmd);
 
@@ -1443,7 +1443,7 @@ static long epl2182_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 							if(dat == 0)
 								obj->ps_cali = 0;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
                             pCustData->clearCali.action = EPL2182_CUST_ACTION_CLR_CALI;
                             len = offsetof(SCP_SENSOR_HUB_SET_CUST_REQ, custData) + sizeof(pCustData->clearCali);
                             
@@ -1471,7 +1471,7 @@ static long epl2182_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 			
 							obj->ps_cali = ps_cali;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
                             pCustData->setCali.action = EPL2182_CUST_ACTION_SET_CALI;
                             pCustData->setCali.cali = ps_cali;
                             len = offsetof(SCP_SENSOR_HUB_SET_CUST_REQ, custData) + sizeof(pCustData->setCali);
@@ -1649,14 +1649,14 @@ static int als_open_report_data(int open)
 static int als_enable_nodata(int en)
 {
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #endif
 
     APS_LOG("epl2182_obj als enable value = %d\n", en);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.activate_req.sensorType = ID_LIGHT;
     req.activate_req.action = SENSOR_HUB_ACTIVATE;
 	req.activate_req.enable = en;
@@ -1694,7 +1694,7 @@ static int als_enable_nodata(int en)
             }
         }
     }
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
     
 	if(res){
 		APS_ERR("als_enable_nodata is failed!!\n");
@@ -1711,14 +1711,14 @@ static int als_set_delay(u64 ns)
 static int als_get_data(int* value, int* status)
 {
 	int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
     struct epl2182_priv *obj =NULL;
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_LIGHT;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
 	len = sizeof(req.get_data_req);
@@ -1767,7 +1767,7 @@ static int als_get_data(int* value, int* status)
             return -1;
         }
     }
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	return err;
 }
@@ -1783,14 +1783,14 @@ static int ps_open_report_data(int open)
 static int ps_enable_nodata(int en)
 {
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #endif
 
     APS_LOG("epl2182_obj als enable value = %d\n", en);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.activate_req.sensorType = ID_PROXIMITY;
     req.activate_req.action = SENSOR_HUB_ACTIVATE;
 	req.activate_req.enable = en;
@@ -1828,7 +1828,7 @@ static int ps_enable_nodata(int en)
         }
         clear_bit(CMC_BIT_PS, &epl2182_obj->enable);
     }
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
     
 	if(res){
 		APS_ERR("als_enable_nodata is failed!!\n");
@@ -1847,12 +1847,12 @@ static int ps_set_delay(u64 ns)
 static int ps_get_data(int* value, int* status)
 {
     int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
      SCP_SENSOR_HUB_DATA req;
      int len;
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
      req.get_data_req.sensorType = ID_PROXIMITY;
      req.get_data_req.action = SENSOR_HUB_GET_DATA;
 	 len = sizeof(req.get_data_req);
@@ -1890,7 +1890,7 @@ static int ps_get_data(int* value, int* status)
 
     *value = gRawData.ps_state;
     *status = SENSOR_STATUS_ACCURACY_MEDIUM;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
     
 	return err;
 }
@@ -1940,7 +1940,7 @@ static int epl2182_i2c_probe(struct i2c_client *client, const struct i2c_device_
     memcpy(epl2182_obj->als_value, epl2182_obj->hw->als_value, sizeof(epl2182_obj->als_value));
 
     INIT_WORK(&obj->eint_work, epl2182_eint_work);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     INIT_WORK(&obj->init_done_work, alsps_init_done_work);
 #endif
     INIT_WORK(&obj->data_work, epl2182_check_ps_data);
@@ -2015,7 +2015,7 @@ static int epl2182_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	als_ctl.enable_nodata = als_enable_nodata;
 	als_ctl.set_delay  = als_set_delay;
 	als_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	als_ctl.is_support_batch = obj->hw->is_batch_supported_als;
 #else
     als_ctl.is_support_batch = false;
@@ -2042,7 +2042,7 @@ static int epl2182_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	ps_ctl.enable_nodata = ps_enable_nodata;
 	ps_ctl.set_delay  = ps_set_delay;
 	ps_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	ps_ctl.is_support_batch = obj->hw->is_batch_supported_ps;
 #else
     ps_ctl.is_support_batch = false;
@@ -2065,14 +2065,14 @@ static int epl2182_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	}
 
 
-	err = batch_register_support_info(ID_LIGHT,als_ctl.is_support_batch, 1, 0);
+	err = batch_register_support_info(ID_LIGHT,als_ctl.is_support_batch, 100, 0);
 	if(err)
 	{
 		APS_ERR("register light batch support err = %d\n", err);
 		goto exit_sensor_obj_attach_fail;
 	}
 	
-	err = batch_register_support_info(ID_PROXIMITY,ps_ctl.is_support_batch, 1, 0);
+	err = batch_register_support_info(ID_PROXIMITY,ps_ctl.is_support_batch, 100, 0);
 	if(err)
 	{
 		APS_ERR("register proximity batch support err = %d\n", err);

@@ -37,7 +37,8 @@
 #include <linux/mmc/sd.h>
 
 #define FEATURE_STORAGE_PERF_INDEX
-#if !defined(CONFIG_MT_ENG_BUILD)
+   
+#ifdef USER_BUILD_KERNEL
 #undef FEATURE_STORAGE_PERF_INDEX
 #endif
 
@@ -50,7 +51,6 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
-#if defined(FEATURE_MET_MMC_INDEX)
 #define MET_USER_EVENT_SUPPORT
 #include <linux/met_drv.h>
 extern void met_mmc_insert(struct mmc_host *host, struct mmc_async_req *areq);
@@ -60,7 +60,6 @@ extern void met_mmc_complete(struct mmc_host *host, struct mmc_async_req *areq);
 extern void met_mmc_dma_unmap_start(struct mmc_host *host, struct mmc_async_req *areq);
 extern void met_mmc_dma_unmap_stop(struct mmc_host *host, struct mmc_async_req *areq);
 extern void met_mmc_continue_req_end(struct mmc_host *host, struct mmc_async_req *areq);
-#endif
 
 #define DAT_TIMEOUT         (HZ    * 5)
 /* If the device is not responding */
@@ -353,8 +352,10 @@ EXPORT_SYMBOL(mmc_start_bkops);
  */
 static void mmc_wait_data_done(struct mmc_request *mrq)
 {
-	mrq->host->context_info.is_done_rcv = true;
-	wake_up_interruptible(&mrq->host->context_info.wait);
+	struct mmc_context_info *context_info = &mrq->host->context_info;
+
+	context_info->is_done_rcv = true;
+	wake_up_interruptible(&context_info->wait);
 }
 
 static void mmc_wait_done(struct mmc_request *mrq)
@@ -603,25 +604,19 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 #endif
 	struct mmc_async_req *data = host->areq;
 
-#if defined(FEATURE_MET_MMC_INDEX)
 	if (areq == NULL) {
 		if (host->areq) {
 			met_mmc_continue_req_end(host, host->areq);
 		}
 	}
-#endif
 
 	/* Prepare a new request */
 	if (areq) {
-#if defined(FEATURE_MET_MMC_INDEX)
 		met_mmc_insert(host, areq);
-#endif
 
 		mmc_pre_req(host, areq->mrq, !host->areq);
 
-#if defined(FEATURE_MET_MMC_INDEX)
 		met_mmc_dma_map(host, areq);
-#endif
 	}
 
 	if (host->areq) {
@@ -677,9 +672,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		    (host->areq->mrq->cmd->resp[0] & R1_EXCEPTION_EVENT))
 			mmc_start_bkops(host->card, true);
 
-#if defined(FEATURE_MET_MMC_INDEX)
 		met_mmc_complete(host, host->areq);
-#endif
 	}
 
 	if (!err && areq) {
@@ -695,15 +688,11 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 	}
 
 	if (host->areq) {
-#if defined(FEATURE_MET_MMC_INDEX)
 		met_mmc_dma_unmap_start(host, host->areq);
-#endif
 
 		mmc_post_req(host, host->areq->mrq, 0);
 
-#if defined(FEATURE_MET_MMC_INDEX)
 		met_mmc_dma_unmap_stop(host, host->areq);
-#endif
     }
 
 	 /* Cancel a prepared request if it was not started. */
@@ -1165,11 +1154,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	/*
 	 * Some cards require longer data read timeout than indicated in CSD.
 	 * Address this by setting the read timeout to a "reasonably high"
-	 * value. For the cards tested, 300ms has proven enough. If necessary,
+	 * value. For the cards tested, 600ms has proven enough. If necessary,
 	 * this value can be increased if other problematic cards require this.
 	 */
 	if (mmc_card_long_read_time(card) && data->flags & MMC_DATA_READ) {
-		data->timeout_ns = 300000000;
+		data->timeout_ns = 600000000;
 		data->timeout_clks = 0;
 	}
 
@@ -1974,8 +1963,7 @@ int mmc_resume_bus(struct mmc_host *host)
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
-		if (!mmc_card_mmc(host->card))
-			mmc_power_up(host);
+		mmc_power_up(host);
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
 	}
@@ -2056,11 +2044,8 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 	host->detect_change = 1;
-#ifndef CONFIG_HAS_EARLYSUSPEND
-	__pm_stay_awake(&host->detect_wake_lock);
-#else
+
 	wake_lock(&host->detect_wake_lock);
-#endif
 	ret = mmc_schedule_delayed_work(&host->detect, delay);
 	printk(KERN_INFO"msdc: %d,mmc_schedule_delayed_work ret= %d\n",host->index,ret);
 }
@@ -2777,17 +2762,9 @@ void mmc_rescan(struct work_struct *work)
 // [FIXME] VIA marks it wrong
 /*    if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered){
         if (extend_wakelock)
-#ifndef CONFIG_HAS_EARLYSUSPEND
-            __pm_wakeup_event(&host->detect_wake_lock, HZ / 2);
-#else
             wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
-#endif
         else
-#ifndef CONFIG_HAS_EARLYSUSPEND
-            __pm_relax(&host->detect_wake_lock);
-#else
             wake_unlock(&host->detect_wake_lock);
-#endif
 
 		return;
     }
@@ -2850,23 +2827,11 @@ void mmc_rescan(struct work_struct *work)
 
  out:
 	if (extend_wakelock)
-#ifndef CONFIG_HAS_EARLYSUSPEND
-		__pm_wakeup_event(&host->detect_wake_lock, HZ / 2);
-#else
 		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
-#endif
 	else
-#ifndef CONFIG_HAS_EARLYSUSPEND
-		__pm_relax(&host->detect_wake_lock);
-#else
 		wake_unlock(&host->detect_wake_lock);
-#endif
 	if (host->caps & MMC_CAP_NEEDS_POLL) {
-#ifndef CONFIG_HAS_EARLYSUSPEND
-		__pm_stay_awake(&host->detect_wake_lock);
-#else
 		wake_lock(&host->detect_wake_lock);
-#endif
 		mmc_schedule_delayed_work(&host->detect, HZ);
 	}
 }
@@ -2893,11 +2858,7 @@ void mmc_stop_host(struct mmc_host *host)
 
 	host->rescan_disable = 1;
 	if (cancel_delayed_work_sync(&host->detect))
-#ifndef CONFIG_HAS_EARLYSUSPEND
-		__pm_relax(&host->detect_wake_lock);
-#else
 		wake_unlock(&host->detect_wake_lock);
-#endif
 	mmc_flush_scheduled_work();
 
 	/* clear pm flags now and let card drivers set them as needed */
@@ -3104,11 +3065,7 @@ int mmc_suspend_host(struct mmc_host *host)
 		return 0;
 
 	if (cancel_delayed_work(&host->detect))
-#ifndef CONFIG_HAS_EARLYSUSPEND
-		__pm_relax(&host->detect_wake_lock);
-#else
 		wake_unlock(&host->detect_wake_lock);
-#endif
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -3216,8 +3173,6 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 #ifdef CONFIG_MTK_HIBERNATION
 	unsigned long wait_time = 0;
 #endif
-	if (host->mount_failed_card == 1)
-		return 0;
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -3232,16 +3187,6 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			}
 			mmc_card_clr_doing_bkops(host->card);
 		}
-		/*
-		 * if enter hibernation remove card directly, otherwise exchange a new
-		 * card at IPOH power off state, when power-up card cann't be recognised,
-		 * cause use old RCA. card will be initialized at PM_HIBERNATION_POST.
-		 */
-		if ((mode == PM_HIBERNATION_PREPARE) && host->card
-			&& mmc_card_sd(host->card)) {
-			pr_warn("mmc%d hibernation remove card,%s\n", host->index, __func__);
-			goto remove;
-		}
 
 		spin_lock_irqsave(&host->lock, flags);
 		if (mmc_bus_needs_resume(host)) {
@@ -3251,15 +3196,11 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		host->rescan_disable = 1;
 		spin_unlock_irqrestore(&host->lock, flags);
 		if (cancel_delayed_work_sync(&host->detect))
-#ifndef CONFIG_HAS_EARLYSUSPEND
-			__pm_relax(&host->detect_wake_lock);
-#else
 			wake_unlock(&host->detect_wake_lock);
-#endif
 
 		if (!host->bus_ops || host->bus_ops->suspend)
 			break;
-remove:
+
 		/* Calling bus_ops->remove() with a claimed host can deadlock */
 		if (host->bus_ops->remove)
 			host->bus_ops->remove(host);

@@ -72,7 +72,8 @@ void mt_pwm_dump_regs_hal(void);
 void pwm_debug_store_hal(void);
 void pwm_debug_show_hal(void);
 
-void mt_set_pwm_buf0_addr_hal(U32 pwm_no, U32 addr);
-void mt_set_pwm_buf0_size_hal(U32 pwm_no, U16 size);
+void mt_set_pwm_buf0_addr_hal(U32 pwm_no, U32 addr);	//add by mtk
+void mt_set_pwm_buf0_size_hal(U32 pwm_no, U16 size);	//add by mktk
+
 
 #endif

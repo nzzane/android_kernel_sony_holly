@@ -33,14 +33,12 @@
 #define EVENT_TYPE_MAGEL_X          ABS_X
 #define EVENT_TYPE_MAGEL_Y          ABS_Y
 #define EVENT_TYPE_MAGEL_Z          ABS_Z
-#define EVENT_TYPE_MAGEL_UPDATE     REL_X
 #define EVENT_DIV_MAGEL             ABS_RUDDER
 #define EVENT_TYPE_MAGEL_STATUS     ABS_WHEEL
 
 #define EVENT_TYPE_O_X          ABS_RX
 #define EVENT_TYPE_O_Y          ABS_RY
 #define EVENT_TYPE_O_Z          ABS_RZ
-#define EVENT_TYPE_O_UPDATE     REL_RX
 #define EVENT_DIV_O             ABS_GAS
 #define EVENT_TYPE_O_STATUS     ABS_THROTTLE
 

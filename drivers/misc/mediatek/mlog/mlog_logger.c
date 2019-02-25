@@ -591,13 +591,6 @@ collect_proc_mem_info:
 			swap_out += t->swap_out;
 #endif
 			t = next_thread(t);
-#ifdef MLOG_DEBUG
-#if defined(__LP64__) || defined(_LP64)
-			if ((long long)t < 0xffffffc000000000)
-				break;
-#endif
-#endif
-
 		} while (t != p);
 
 		/* emit log */

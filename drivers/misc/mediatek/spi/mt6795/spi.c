@@ -92,7 +92,7 @@ struct mt_spi_t {
 //	#define SPI_REC_DEBUG
 
 #ifdef SPI_DEBUG
-	#define SPI_DBG(fmt, args...)  pr_debug("spi.c:%5d: <%s>" fmt, __LINE__,__func__,##args )
+	#define SPI_DBG(fmt, args...)  printk(KERN_ALERT "spi.c:%5d: <%s>" fmt, __LINE__,__func__,##args )
 
 
 #ifdef SPI_VERBOSE
@@ -109,7 +109,6 @@ static void spi_dump_reg(struct mt_spi_t *ms)
 	SPI_DBG("tx_s:0x%.8x\n", spi_readl(ms, SPI_TX_SRC_REG));
 	SPI_DBG("rx_d:0x%.8x\n", spi_readl(ms, SPI_RX_DST_REG) );
 	SPI_DBG("sta1:0x%.8x\n", spi_readl(ms, SPI_STATUS1_REG));
-	SPI_DBG(":0x%.8x\n", spi_readl(ms, SPI_STATUS1_REG));
 
 	SPI_DBG("||*****************************************||\n");
 	return;
@@ -199,7 +198,7 @@ static inline void spi_rec_time(const char *str)
 		}
 	}
 	spin_unlock_irqrestore(&msg_rec_lock,flags);
-//		SPI_DBG("%s\n",msg_rec[rec_count]);
+//		printk(KERN_ALERT"%s\n",msg_rec[rec_count]);
 	return;
 }
 
@@ -207,7 +206,7 @@ void mt_spi_workqueue_handler(void *data)
 {
 	int i = 0;
 	for(i=0;i< SPI_REC_NUM; i++){							
-		SPI_DBG("spi-rec%3d-%3d:%s\n",rec_count,rec_count_tmp,msg_rec[rec_count_tmp]);
+		printk(KERN_ALERT"spi-rec%3d-%3d:%s\n",rec_count,rec_count_tmp,msg_rec[rec_count_tmp]);
 		msg_rec[rec_count_tmp][0] = '\0';
 		rec_count_tmp ++;
 		if(rec_count_tmp >= SPI_REC_MSG_MAX){
@@ -258,12 +257,12 @@ int secspi_session_open(void)
      mutex_lock(&secspi_lock); 
 
 
-     SPI_DBG("secspi_session_open start\n");
+     pr_warn("secspi_session_open start\n");
      do {
            /* sessions reach max numbers ? */
 
            if (secspi_session_ref > MAX_OPEN_SESSIONS) {
-               SPI_DBG("secspi_session > 0x%x\n", MAX_OPEN_SESSIONS);
+               pr_warn("secspi_session > 0x%x\n", MAX_OPEN_SESSIONS);
                break;
            }
 
@@ -275,14 +274,14 @@ int secspi_session_open(void)
            /* open device */
            mc_ret = mc_open_device(secspi_devid);
            if (MC_DRV_OK != mc_ret) {
-	           SPI_DBG("mc_open_device failed: %d\n", mc_ret);
+	           pr_warn("mc_open_device failed: %d\n", mc_ret);
                break;
            }
 
            /* allocating WSM for DCI */ 
            mc_ret = mc_malloc_wsm(secspi_devid, 0, sizeof(tciSpiMessage_t), (uint8_t **)&secspi_tci, 0);
            if (MC_DRV_OK != mc_ret) {
-               SPI_DBG("mc_malloc_wsm failed: %d\n", mc_ret);
+               pr_warn("mc_malloc_wsm failed: %d\n", mc_ret);
                mc_close_device(secspi_devid);
                break;
            }
@@ -292,7 +291,7 @@ int secspi_session_open(void)
            mc_ret = mc_open_session(&secspi_session, &secspi_uuid, (uint8_t *)secspi_tci, sizeof(tciSpiMessage_t));
 
            if (MC_DRV_OK != mc_ret) {
-	           SPI_DBG("secspi_session_open fail: %d\n", mc_ret);
+	           pr_warn("secspi_session_open fail: %d\n", mc_ret);
                mc_free_wsm(secspi_devid, (uint8_t *)secspi_tci); 
                mc_close_device(secspi_devid);
                secspi_tci = NULL;
@@ -302,10 +301,10 @@ int secspi_session_open(void)
 
        } while(0);
 
-       SPI_DBG("secspi_session_open: ret=%d, ref=%d\n", mc_ret, secspi_session_ref);
+       pr_warn("secspi_session_open: ret=%d, ref=%d\n", mc_ret, secspi_session_ref);
 
        mutex_unlock(&secspi_lock);
-       SPI_DBG("secspi_session_open end\n");
+       pr_err("secspi_session_open end\n");
 	   
        if (MC_DRV_OK != mc_ret)
            return -ENXIO;
@@ -317,18 +316,18 @@ int secspi_execute(u32 cmd, tciSpiMessage_t *param)
 {
     enum mc_result mc_ret;
 
-    SPI_DBG("secspi_execute\n");
+    pr_warn("secspi_execute\n");
     mutex_lock(&secspi_lock);
 
     if(NULL == secspi_tci) {
         mutex_unlock(&secspi_lock); 
-        SPI_DBG("secspi_tci not exist\n");
+        pr_warn("secspi_tci not exist\n");
         return -ENODEV;
     }
 
     /*set transfer data para*/
 	if(NULL == param) {
-        SPI_DBG("secspi_execute parameter is NULL !!\n");
+        pr_warn("secspi_execute parameter is NULL !!\n");
 	}else {
 	    secspi_tci->tx_buf = param->tx_buf;
 	    secspi_tci->rx_buf = param->rx_buf;
@@ -342,21 +341,21 @@ int secspi_execute(u32 cmd, tciSpiMessage_t *param)
     secspi_tci->cmd_spi.header.commandId = (tciCommandId_t)cmd;
 	secspi_tci->cmd_spi.len = 0;
 	
-    SPI_DBG("mc_notify\n");
+    pr_warn("mc_notify\n");
 	
     enable_clock(MT_CG_PERI_SPI0, "spi");
     mc_ret = mc_notify(&secspi_session);
 
     if (MC_DRV_OK != mc_ret) {
-       SPI_DBG("mc_notify failed: %d", mc_ret);
+       pr_warn("mc_notify failed: %d", mc_ret);
        goto exit;
     }
 
-    SPI_DBG("SPI mc_wait_notification\n");
+    pr_warn("SPI mc_wait_notification\n");
     mc_ret = mc_wait_notification(&secspi_session, -1);
 
     if (MC_DRV_OK != mc_ret) {
-        SPI_DBG("SPI mc_wait_notification failed: %d", mc_ret);
+        pr_warn("SPI mc_wait_notification failed: %d", mc_ret);
         goto exit;
     }
 	
@@ -379,7 +378,7 @@ static int secspi_session_close(void)
     do {
         /* session is already closed ? */
         if (secspi_session_ref == 0) {
-            SPI_DBG("spi_session already closed\n");
+            pr_warn("spi_session already closed\n");
             break;
         }
 
@@ -391,14 +390,14 @@ static int secspi_session_close(void)
         /* close session */
         mc_ret = mc_close_session(&secspi_session);
         if (MC_DRV_OK != mc_ret) {
-            SPI_DBG("SPI mc_close_session failed: %d\n", mc_ret);     
+            pr_warn("SPI mc_close_session failed: %d\n", mc_ret);     
             break;
         }
         
         /* free WSM for DCI */        
         mc_ret = mc_free_wsm(secspi_devid, (uint8_t*)secspi_tci);
         if (MC_DRV_OK != mc_ret) {
-            SPI_DBG("SPI mc_free_wsm failed: %d\n", mc_ret);           
+            pr_warn("SPI mc_free_wsm failed: %d\n", mc_ret);           
             break;
         }
         secspi_tci = NULL;
@@ -407,12 +406,12 @@ static int secspi_session_close(void)
         /* close device */
         mc_ret = mc_close_device(secspi_devid);
         if (MC_DRV_OK != mc_ret) {
-            SPI_DBG("SPI mc_close_device failed: %d\n", mc_ret);
+            pr_warn("SPI mc_close_device failed: %d\n", mc_ret);
         }    
 
     } while(0);
 
-    SPI_DBG("secspi_session_close: ret=%d, ref=%d\n", mc_ret, secspi_session_ref);
+    pr_warn("secspi_session_close: ret=%d, ref=%d\n", mc_ret, secspi_session_ref);
 
     mutex_unlock(&secspi_lock);
 
@@ -421,13 +420,6 @@ static int secspi_session_close(void)
 
     return 0;
 
-}
-/*used for REE to detach IRQ of TEE*/
-void spi_detach_irq_tee(void)
-{
-	secspi_session_open();
-	secspi_execute(2, NULL);
-    SPI_DBG("secspi_execute 2 finished!!!\n");
 }
 #endif
 
@@ -454,20 +446,36 @@ static void spi_gpio_reset(struct mt_spi_t *ms)
 
 static void enable_clk(void)
 {
-#if (!defined(CONFIG_MT_SPI_FPGA_ENABLE))
+//#if (!defined(CONFIG_MT_SPI_FPGA_ENABLE))
+	printk("enalbe spi clk");
 	enable_clock(MT_CG_PERI_SPI0, "spi");
-#endif
+//#endif
 	return;
 }
 
 static void disable_clk(void)
 {
-#if (!defined(CONFIG_MT_SPI_FPGA_ENABLE))
+//#if (!defined(CONFIG_MT_SPI_FPGA_ENABLE))
+	printk("disalbe spi clk");
 	disable_clock(MT_CG_PERI_SPI0, "spi");
-#endif
+//#endif
 	return;
 }
+//add by dingyin for TEE spi clk
+void mt_spi_enable_clk(void)
+{
+	enable_clk();
+	return;
+}
+EXPORT_SYMBOL(mt_spi_enable_clk);
 
+void mt_spi_disable_clk(void)
+{
+	disable_clk();
+	return;
+}
+EXPORT_SYMBOL(mt_spi_disable_clk);
+//add by dingyin for TEE spi clk
 static int is_pause_mode(struct spi_message	*msg)
 {
 	struct mt_chip_conf *conf;	
@@ -819,13 +827,13 @@ mt_spi_next_xfer(struct mt_spi_t *ms, struct spi_message *msg)
     #ifdef SPI_AUTO_SELECT_MODE
         if(ms->cur_transfer.len > SPI_DATA_SIZE) {
 			chip_config->com_mod = DMA_TRANSFER;
-		    SPI_DBG("SPI auto select DMA mode \n");
+		    pr_warn("SPI auto select DMA mode \n");
 			reg_val = spi_readl ( ms, SPI_CMD_REG ); 
 	        reg_val |= ((1<<SPI_CMD_TX_DMA_OFFSET) | (1<<SPI_CMD_RX_DMA_OFFSET));
 	        spi_writel ( ms, SPI_CMD_REG, reg_val );
-			SPI_DBG("SPI auto select CMD = 0x%x \n", spi_readl ( ms, SPI_CMD_REG ));
+			pr_warn("SPI auto select CMD = 0x%x \n", spi_readl ( ms, SPI_CMD_REG ));
 		}else {
-			SPI_DBG("SPI auto select do nothing \n");
+			pr_warn("SPI auto select do nothing \n");
 		}	
 	#endif
 	
@@ -994,7 +1002,7 @@ static void mt_spi_next_message(struct mt_spi_t *ms)
 	
 	spi_rec_time(msg_addr);	
 //		t_rec[1] = sched_clock();
-//		SPI_DBG("msgs rec consume time%lld",t_rec[1] - t_rec[0]);
+//		printk(KERN_ALERT"msgs rec consume time%lld",t_rec[1] - t_rec[0]);
 	
 	
 	SPI_DBG("start transfer message:0x%p\n", msg);
@@ -1006,7 +1014,7 @@ static void mt_spi_next_message(struct mt_spi_t *ms)
 //		t_rec[0] = sched_clock();
 //		spi_rec_time("clke");
 //		t_rec[1] = sched_clock();
-//		SPI_DBG("clke rec consume time%lld",t_rec[1] - t_rec[0]);
+//		printk(KERN_ALERT"clke rec consume time%lld",t_rec[1] - t_rec[0]);
 	reset_spi(ms);
 	mt_do_spi_setup(ms, chip_config);	
 	mt_spi_next_xfer(ms, msg);
@@ -1120,14 +1128,14 @@ static irqreturn_t mt_spi_interrupt(int irq, void *dev_id)
 	//Clear interrupt status first by reading the register
 	reg_val = spi_readl(ms,SPI_STATUS0_REG);	
 	SPI_DBG("xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
-//		SPI_DBG("xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
+//		printk(KERN_ALERT"xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
 	
 	if(unlikely(!msg)){
-		SPI_DBG("msg in interrupt %d is NULL pointer. \n",reg_val & 0x3 );		
+		printk(KERN_ERR"msg in interrupt %d is NULL pointer. \n",reg_val & 0x3 );		
 		goto out;
 	}
 	if(unlikely(!xfer)){
-		SPI_DBG("xfer in interrupt %d is NULL pointer. \n",reg_val & 0x3 );		
+		printk(KERN_ERR"xfer in interrupt %d is NULL pointer. \n",reg_val & 0x3 );		
 		goto out;
 	}
 	
@@ -1136,7 +1144,7 @@ static irqreturn_t mt_spi_interrupt(int irq, void *dev_id)
 //		/*clear the interrupt status bits by reading the register*/
 //		reg_val = spi_readl(ms,SPI_STATUS0_REG);	
 //		SPI_DBG("xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
-//		SPI_DBG("xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
+//		printk(KERN_ALERT"xfer:0x%p interrupt status:%x\n",xfer,reg_val & 0x3);
 	if((reg_val & 0x03) == 0)
 		goto out;
 	
@@ -1398,7 +1406,7 @@ static int __init mt_spi_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
-	SPI_DBG("SPI reg: 0x%p  irq: %d id: %d\n", spi_base, irq, pdev->id);
+	pr_warn("SPI reg: 0x%p  irq: %d id: %d\n", spi_base, irq, pdev->id);
 #else
 	regs = platform_get_resource ( pdev,IORESOURCE_MEM, 0 );
 	if(!regs){
@@ -1522,12 +1530,12 @@ mt_spi_suspend(struct platform_device *pdev, pm_message_t message )
 {
 	/* if interrupt is enabled, 
 	  * then wait for interrupt complete. */
-//	SPI_DBG("the pm status is:0x%x.\n", message.event );
+//	printk(KERN_ALERT"the pm status is:0x%x.\n", message.event );
 	return 0;	
 }
 static int mt_spi_resume ( struct platform_device *pdev )
 {
-//	SPI_DBG("spi resume.\n" );
+//	printk(KERN_ALERT"spi resume.\n" );
 	return 0;
 }
 #else

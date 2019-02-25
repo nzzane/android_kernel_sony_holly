@@ -1,5 +1,6 @@
 /*
 * Copyright(C)2014 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
 * Modification based on code covered by the below mentioned copyright
 * and/or permission notice(S).
 */
@@ -61,6 +62,7 @@
 #define CUST_EINT_ALS_POLARITY 		CUST_EINT_ALS_TYPE
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
 
+#define MTK_AUTO_DETECT_ALSPS
 /******************************************************************************
  * configuration
 *******************************************************************************/
@@ -2899,27 +2901,27 @@ static int als_open_report_data(int open)
 static int als_enable_nodata(int en)
 {
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     APS_LOG("stk3x1x_obj als enable value = %d\n", en);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.activate_req.sensorType = ID_LIGHT;
     req.activate_req.action = SENSOR_HUB_ACTIVATE;
     req.activate_req.enable = en;
     len = sizeof(req.activate_req);
     res = SCP_sensorHub_req_send(&req, &len, 1);
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(!stk3x1x_obj)
 	{
 		APS_ERR("stk3x1x_obj is null!!\n");
 		return -1;
 	}
 	res=	stk3x1x_enable_als(stk3x1x_obj->client, en);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(res){
 		APS_ERR("als_enable_nodata is failed!!\n");
 		return -1;
@@ -2935,14 +2937,14 @@ static int als_set_delay(u64 ns)
 static int als_get_data(int* value, int* status)
 {
 	int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
     struct stk3x1x_priv *obj = NULL;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_LIGHT;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -2962,7 +2964,7 @@ static int als_get_data(int* value, int* status)
         APS_LOG("value = %d\n", *value);
         //show data
 	}
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(!stk3x1x_obj)
 	{
 		APS_ERR("stk3x1x_obj is null!!\n");
@@ -2978,7 +2980,7 @@ static int als_get_data(int* value, int* status)
 		*value = stk3x1x_get_als_value(obj, obj->als);
 		*status = SENSOR_STATUS_ACCURACY_MEDIUM;
 	}
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	return err;
 }
@@ -2994,27 +2996,27 @@ static int ps_open_report_data(int open)
 static int ps_enable_nodata(int en)
 {
 	int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     APS_LOG("stk3x1x_obj als enable value = %d\n", en);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.activate_req.sensorType = ID_PROXIMITY;
     req.activate_req.action = SENSOR_HUB_ACTIVATE;
     req.activate_req.enable = en;
     len = sizeof(req.activate_req);
     res = SCP_sensorHub_req_send(&req, &len, 1);
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(!stk3x1x_obj)
 	{
 		APS_ERR("stk3x1x_obj is null!!\n");
 		return -1;
 	}
 	res=	stk3x1x_enable_ps(stk3x1x_obj->client, en);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
     
 	if(res){
 		APS_ERR("als_enable_nodata is failed!!\n");
@@ -3032,12 +3034,12 @@ static int ps_set_delay(u64 ns)
 static int ps_get_data(int* value, int* status)
 {
     int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_PROXIMITY;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -3057,7 +3059,7 @@ static int ps_get_data(int* value, int* status)
         APS_LOG("value = %d\n", *value);
         //show data
 	}
-#else //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifdef CUSTOM_KERNEL_SENSORHUB
     if(!stk3x1x_obj)
 	{
 		APS_ERR("stk3x1x_obj is null!!\n");
@@ -3073,7 +3075,7 @@ static int ps_get_data(int* value, int* status)
         *value = stk3x1x_get_ps_value(stk3x1x_obj, stk3x1x_obj->ps);
         *status = SENSOR_STATUS_ACCURACY_MEDIUM;
     }
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
     
 	return 0;
 }
@@ -3199,7 +3201,7 @@ static int stk3x1x_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	als_ctl.enable_nodata = als_enable_nodata;
 	als_ctl.set_delay  = als_set_delay;
 	als_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	als_ctl.is_support_batch = obj->hw->is_batch_supported_als;
 #else
     als_ctl.is_support_batch = false;
@@ -3226,7 +3228,7 @@ static int stk3x1x_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	ps_ctl.enable_nodata = ps_enable_nodata;
 	ps_ctl.set_delay  = ps_set_delay;
 	ps_ctl.is_report_input_direct = true;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	ps_ctl.is_support_batch = obj->hw->is_batch_supported_ps;
 #else
     ps_ctl.is_support_batch = false;

@@ -19,6 +19,7 @@
 #endif
 
 
+// in K2, main=3, sub=main2=1
 #define LENS_I2C_BUSNUM 0
 
 #define AF_DRVNAME "BU6429AF"
@@ -27,11 +28,11 @@
 #define PLATFORM_DRIVER_NAME "lens_actuator_bu6429af"
 #define AF_DRIVER_CLASS_NAME "actuatordrv_bu6429af"
 
-static struct i2c_board_info __initdata kd_lens_dev={ I2C_BOARD_INFO(AF_DRVNAME, I2C_REGISTER_ID)};
+static struct i2c_board_info __initdata kd_lens_dev={ I2C_BOARD_INFO(AF_DRVNAME, 0x19)};
 
 #define AF_DEBUG
 #ifdef AF_DEBUG
-#define LOG_INF(format, args...) pr_debug(AF_DRVNAME " [%s] " format, __FUNCTION__, ##args)
+#define LOG_INF(format, args...) xlog_printk(ANDROID_LOG_INFO,    AF_DRVNAME, "[%s] " format, __FUNCTION__, ##args)
 #else
 #define LOG_INF(format, args...)
 #endif
@@ -67,7 +68,7 @@ static int s4AF_ReadReg(unsigned short *a_pu2Result)
         return -1;
     }
 
-    *a_pu2Result = (((u16)pBuff[0]) << 2) + (pBuff[1]);
+		*a_pu2Result = (((u16)(pBuff[0] & 0x03)) << 8) + pBuff[1];
 
     return 0;
 }
@@ -76,7 +77,8 @@ static int s4AF_WriteReg(u16 a_u2Data)
 {
     int  i4RetValue = 0;
 
-    char puSendCmd[2] = {(char)(a_u2Data>>8)+0xC0 , (char)(a_u2Data & 0xFF)};
+    //char puSendCmd[3] = {0x03,(char)(a_u2Data >> 8)};
+    char puSendCmd[2] = {(char)(a_u2Data >> 8)&0x03|0xF4 , (char)(a_u2Data & 0xff )};// modify by rohm riku, 0xc0 mode is for PWM. oxF4 for linear 
 
     //LOG_INF("g_sr %d, write %d \n", g_sr, a_u2Data);
     g_pstAF_I2Cclient->ext_flag |= I2C_A_FILTER_MSG;
@@ -250,8 +252,10 @@ unsigned long a_u4Param)
 //CAM_RESET
 static int AF_Open(struct inode * a_pstInode, struct file * a_pstFile)
 {
-    LOG_INF("Start \n");
+   long i4RetValue = 0;
+   LOG_INF("Start \n");
 
+ 
     if(g_s4AF_Opened)
     {
         LOG_INF("The device is opened \n");
@@ -263,7 +267,35 @@ static int AF_Open(struct inode * a_pstInode, struct file * a_pstFile)
     spin_unlock(&g_AF_SpinLock);
 
     LOG_INF("End \n");
-
+    
+char puSendCmd1[2]={(char)(0x94),(char)(0x32)};//A point=100d 
+char puSendCmd2[2]={(char)(0x9C),(char)(0x46)};//B point=139d 
+char puSendCmd3[2]={(char)(0xA4),(char)(0x84)};//A-B point step mode:200us/4Lsd 
+char puSendCmd4[2]={(char)(0x8C),(char)(0x3B)};//80Hz,Fast mode
+ i4RetValue = i2c_master_send(g_pstAF_I2Cclient, puSendCmd1, 2);	
+    if (i4RetValue < 0) 
+    {
+        LOG_INF(" I2C send failed!! \n");
+        return -1;
+    }
+ i4RetValue = i2c_master_send(g_pstAF_I2Cclient, puSendCmd2, 2);
+    if (i4RetValue < 0) 
+    {
+        LOG_INF(" I2C send failed!! \n");
+        return -1;
+    }
+ i4RetValue = i2c_master_send(g_pstAF_I2Cclient, puSendCmd3, 2);
+    if (i4RetValue < 0) 
+    {
+        LOG_INF(" I2C send failed!! \n");
+        return -1;
+    }
+ i4RetValue = i2c_master_send(g_pstAF_I2Cclient, puSendCmd4, 2);
+    if (i4RetValue < 0) 
+    {
+        LOG_INF(" I2C send failed!! \n");
+        return -1;
+    }
     return 0;
 }
 
@@ -276,23 +308,20 @@ static int AF_Release(struct inode * a_pstInode, struct file * a_pstFile)
 {
     LOG_INF("Start \n");
 
-    if (g_s4AF_Opened == 2)
-    {
-        g_sr = 5;
-        s4AF_WriteReg(200);
-        msleep(10);
-        s4AF_WriteReg(100);
-        msleep(10);
-    }
-
     if (g_s4AF_Opened)
     {
         LOG_INF("Free \n");
+        g_sr = 5;
+        s4AF_WriteReg(300);
+        msleep(10);
+        s4AF_WriteReg(200);
+        msleep(10);
 
         spin_lock(&g_AF_SpinLock);
         g_s4AF_Opened = 0;
         spin_unlock(&g_AF_SpinLock);
-    }    
+
+    }
 
     LOG_INF("End \n");
 

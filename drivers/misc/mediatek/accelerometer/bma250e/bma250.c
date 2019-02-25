@@ -45,9 +45,9 @@
 
 #include <accel.h>
 #include <linux/batch.h>
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 /*----------------------------------------------------------------------------*/
 #define I2C_DRIVERID_BMA250 250
@@ -72,9 +72,9 @@ static struct i2c_board_info __initdata i2c_bma250={ I2C_BOARD_INFO("BMA250", (0
 /*----------------------------------------------------------------------------*/
 static int bma250_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id); 
 static int bma250_i2c_remove(struct i2c_client *client);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int gsensor_setup_irq(void);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 static int gsensor_local_init(void);
 static int gsensor_remove(void);
@@ -130,9 +130,9 @@ struct bma250_i2c_data {
     struct acc_hw *hw;
     struct hwmsen_convert   cvt;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct work_struct	irq_work;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 	
     /*misc*/
     struct data_resolution *reso;
@@ -146,9 +146,9 @@ struct bma250_i2c_data {
     s8                      offset[BMA250_AXES_NUM+1];  /*+1: for 4-byte alignment*/
     s16                     data[BMA250_AXES_NUM+1];
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     int                     SCP_init_done;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #if defined(CONFIG_BMA250_LOWPASS)
     atomic_t                firlen;
@@ -234,7 +234,7 @@ static void BMA250_power(struct acc_hw *hw, unsigned int on)
 }
 /*----------------------------------------------------------------------------*/
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 int BMA250_SCP_SetPowerMode(bool enable, int sensorType)
 {
     static bool gsensor_scp_en_status = false;
@@ -285,7 +285,7 @@ int BMA250_SCP_SetPowerMode(bool enable, int sensorType)
     return err;
 }
 EXPORT_SYMBOL(BMA250_SCP_SetPowerMode);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
 /*----------------------------------------------------------------------------*/
 static int BMA250_SetDataResolution(struct bma250_i2c_data *obj)
@@ -436,7 +436,7 @@ static int BMA250_ResetCalibration(struct i2c_client *client)
 	#endif
 	int err = 0;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     BMA250_CUST_DATA *pCustData;
     unsigned int len;
@@ -534,7 +534,7 @@ static int BMA250_WriteCalibration(struct i2c_client *client, int dat[BMA250_AXE
 	int divisor = obj->reso->sensitivity/lsb;
 	#endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	SCP_SENSOR_HUB_DATA data;
 	BMA250_CUST_DATA *pCustData;
 	unsigned int len;
@@ -552,7 +552,7 @@ static int BMA250_WriteCalibration(struct i2c_client *client, int dat[BMA250_AXE
 		obj->offset[BMA250_AXIS_X], obj->offset[BMA250_AXIS_Y], obj->offset[BMA250_AXIS_Z],
 		obj->cali_sw[BMA250_AXIS_X], obj->cali_sw[BMA250_AXIS_Y], obj->cali_sw[BMA250_AXIS_Z]);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	pCustData = (BMA250_CUST_DATA *)data.set_cust_req.custData;
 	data.set_cust_req.sensorType = ID_ACCELEROMETER;
 	data.set_cust_req.action = SENSOR_HUB_SET_CUST;
@@ -826,13 +826,13 @@ static int bma250_init_client(struct i2c_client *client, int reset_cali)
 	gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = obj->reso->sensitivity;
 
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	res = gsensor_setup_irq();
 	if(res != BMA250_SUCCESS)
 	{
 		return res;
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	res = BMA250_SetIntEnable(client, 0x00);        
 	if(res != BMA250_SUCCESS)
@@ -1287,7 +1287,7 @@ static int bma250_delete_attr(struct device_driver *driver)
 }
 
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static void gsensor_irq_work(struct work_struct *work)
 {
     struct bma250_i2c_data *obj = obj_i2c_data;
@@ -1397,7 +1397,7 @@ static int gsensor_setup_irq()
     
 	return err;
 }
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 
 /****************************************************************************** 
@@ -1627,16 +1627,16 @@ static int bma250_suspend(struct i2c_client *client, pm_message_t msg)
 		}
 		atomic_set(&obj->suspend, 1);
 		
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 		if(err = BMA250_SetPowerMode(obj->client, false))
-#else //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifndef CUSTOM_KERNEL_SENSORHUB
 		if ((err = BMA250_SCP_SetPowerMode(false, ID_ACCELEROMETER)))
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
 		{
 			GSE_ERR("write power control fail!!\n");
 			return;
 		}
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)		
+#ifndef CUSTOM_KERNEL_SENSORHUB		
 		BMA250_power(obj->hw, 0);
 #endif
 	}
@@ -1654,11 +1654,11 @@ static int bma250_resume(struct i2c_client *client)
 		GSE_ERR("null pointer!!\n");
 		return -EINVAL;
 	}
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	BMA250_power(obj->hw, 1);
 #endif
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	if(err = bma250_init_client(client, 0))
 #else
 	if ((err = BMA250_SCP_SetPowerMode(enable_status, ID_ACCELEROMETER)))
@@ -1687,7 +1687,7 @@ static void bma250_early_suspend(struct early_suspend *h)
 		return;
 	}
 	atomic_set(&obj->suspend, 1);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	err = BMA250_SetPowerMode(obj->client, false); 
 #else
 	if ((err = BMA250_SCP_SetPowerMode(false, ID_ACCELEROMETER)))
@@ -1699,7 +1699,7 @@ static void bma250_early_suspend(struct early_suspend *h)
 	}
 
 	sensor_power = false;
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)	
+#ifndef CUSTOM_KERNEL_SENSORHUB	
 	BMA250_power(obj->hw, 0);
 #endif
 }
@@ -1716,11 +1716,11 @@ static void bma250_late_resume(struct early_suspend *h)
 		return;
 	}
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	BMA250_power(obj->hw, 1);
 #endif
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	if (bma250_revesion == BMA250E)
 	{
 		u8 buf = 0xE6;
@@ -1775,13 +1775,13 @@ static int gsensor_enable_nodata(int en)
 		enable_status = !sensor_power;
 		if (atomic_read(&obj_i2c_data->suspend) == 0)
 		{
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
             err = BMA250_SCP_SetPowerMode(enable_status, ID_ACCELEROMETER);
             if (0 == err)
             {
                 sensor_power = enable_status;
             }
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 			err = BMA250_SetPowerMode(obj_i2c_data->client, enable_status);
 #endif
 			GSE_LOG("Gsensor not in suspend gsensor_SetPowerMode!, enable_status = %d\n",enable_status);
@@ -1807,12 +1807,12 @@ static int gsensor_set_delay(u64 ns)
 {
     int err = 0;
     int value;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 	int sample_delay;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #ifdef GSENSOR_UT
     GSE_FUN();
@@ -1820,7 +1820,7 @@ static int gsensor_set_delay(u64 ns)
 
     value = (int)ns/1000/1000;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.set_delay_req.sensorType = ID_ACCELEROMETER;
     req.set_delay_req.action = SENSOR_HUB_SET_DELAY;
     req.set_delay_req.delay = value;
@@ -1831,7 +1831,7 @@ static int gsensor_set_delay(u64 ns)
         GSE_ERR("SCP_sensorHub_req_send!\n");
         return err;
     }
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)    
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB    
 	if(value <= 5)
 	{
 		sample_delay = BMA250_BW_200HZ;
@@ -1869,7 +1869,7 @@ static int gsensor_set_delay(u64 ns)
 		atomic_set(&obj_i2c_data->filter, 1);
 	#endif
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
     
     GSE_LOG("gsensor_set_delay (%d)\n",value);
 
@@ -1878,17 +1878,17 @@ static int gsensor_set_delay(u64 ns)
 /*----------------------------------------------------------------------------*/
 static int gsensor_get_data(int* x ,int* y,int* z, int* status)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
     int err = 0;
 #else
     char buff[BMA250_BUFSIZE];
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     //GSE_FUN();
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_ACCELEROMETER;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -1914,7 +1914,7 @@ static int gsensor_get_data(int* x ,int* y,int* z, int* status)
     //GSE_ERR("x = %d, y = %d, z = %d\n", *x, *y, *z);
     *status = SENSOR_STATUS_ACCURACY_MEDIUM;
 
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
     mutex_lock(&gsensor_mutex);
 	BMA250_ReadSensorData(obj_i2c_data->client, buff, BMA250_BUFSIZE);
 	mutex_unlock(&gsensor_mutex);
@@ -1959,9 +1959,9 @@ static int bma250_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 		goto exit;
 	}
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	INIT_WORK(&obj->irq_work, gsensor_irq_work);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	obj_i2c_data = obj;
 	obj->client = client;
@@ -1971,9 +1971,9 @@ static int bma250_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 	atomic_set(&obj->trace, 0);
 	atomic_set(&obj->suspend, 0);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     obj->SCP_init_done = 0;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #ifdef CONFIG_BMA250_LOWPASS
 	if(obj->hw->firlen > C_MAX_FIR_LENGTH)
@@ -2019,7 +2019,7 @@ static int bma250_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 	ctl.set_delay  = gsensor_set_delay;
 	ctl.is_report_input_direct = false;
 	
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	ctl.is_support_batch = obj->hw->is_batch_supported;
 #else
 	ctl.is_support_batch = false;

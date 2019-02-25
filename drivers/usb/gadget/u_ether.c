@@ -935,21 +935,6 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 
 	req->length = length;
 
-	/* throttle high/super speed IRQ rate back slightly */
-	if (gadget_is_dualspeed(dev->gadget) &&
-			 (dev->gadget->speed == USB_SPEED_HIGH ||
-			  dev->gadget->speed == USB_SPEED_SUPER)) {
-		dev->tx_qlen++;
-		if (dev->tx_qlen == (qmult/2)) {
-			req->no_interrupt = 0;
-			dev->tx_qlen = 0;
-		} else {
-			req->no_interrupt = 1;
-		}
-	} else {
-		req->no_interrupt = 0;
-	}
-	rndis_test_tx_usb_out ++ ;
 	retval = usb_ep_queue(in, req, GFP_ATOMIC);
 	switch (retval) {
 	default:
@@ -1065,8 +1050,6 @@ static int eth_stop(struct net_device *net)
 
 /*-------------------------------------------------------------------------*/
 
-static u8 host_ethaddr[ETH_ALEN];
-
 /* initial value, changed by "ifconfig usb0 hw ether xx:xx:xx:xx:xx:xx" */
 static char *dev_addr;
 module_param(dev_addr, charp, S_IRUGO);
@@ -1077,16 +1060,6 @@ static char *host_addr;
 module_param(host_addr, charp, S_IRUGO);
 MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 
-static int get_host_ether_addr(u8 *str, u8 *dev_addr)
-{
-	memcpy(dev_addr, str, ETH_ALEN);
-	if (is_valid_ether_addr(dev_addr))
-		return 0;
-
-	random_ether_addr(dev_addr);
-	memcpy(str, dev_addr, ETH_ALEN);
-	return 1;
-}
 static int get_ether_addr(const char *str, u8 *dev_addr)
 {
 	if (str) {
@@ -1165,11 +1138,9 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
 	if (get_ether_addr(dev_addr, net->dev_addr))
 		dev_warn(&g->dev,
 			"using random %s ethernet address\n", "self");
-
-	if (get_host_ether_addr(host_ethaddr, dev->host_mac))
-		dev_warn(&g->dev, "using random %s ethernet address\n", "host");
-	else
-		dev_warn(&g->dev, "using previous %s ethernet address\n", "host");
+	if (get_ether_addr(host_addr, dev->host_mac))
+		dev_warn(&g->dev,
+			"using random %s ethernet address\n", "host");
 
 	if (ethaddr)
 		memcpy(ethaddr, dev->host_mac, ETH_ALEN);

@@ -136,8 +136,6 @@ static void arm64_memory_present(void)
 }
 #endif
 
-__attribute__((weak)) extern struct ion_platform_data ion_drv_platform_data;
-__attribute__((weak)) extern void __init ion_reserve(struct ion_platform_data *data);
 
 void __init arm64_memblock_init(void)
 {
@@ -189,11 +187,6 @@ void __init arm64_memblock_init(void)
         mrdump_mini_reserve_memory();
 	
 	early_init_fdt_scan_reserved_mem();
-
-       //reserve for ion_carveout_heap
-       if(ion_reserve && (&ion_drv_platform_data))
-           ion_reserve(&ion_drv_platform_data);
-
 	memblock_allow_resize();
 	memblock_dump_all();
 }
@@ -283,7 +276,7 @@ static void __init free_unused_memmap(void)
 		 * memmap entries are valid from the bank end aligned to
 		 * MAX_ORDER_NR_PAGES.
 		 */
-		prev_end = ALIGN(start + __phys_to_pfn(reg->size),
+		prev_end = ALIGN(__phys_to_pfn(reg->base + reg->size),
 				 MAX_ORDER_NR_PAGES);
 	}
 

@@ -63,7 +63,7 @@ static int __init mt_power_gs_dpidle_init(void)
 
     if (!mt_power_gs_dir)
     {
-		pr_err("[%s]: mkdir /proc/mt_power_gs failed\n", __func__);
+        printk("[%s]: mkdir /proc/mt_power_gs failed\n", __FUNCTION__);
     }
     else
     {

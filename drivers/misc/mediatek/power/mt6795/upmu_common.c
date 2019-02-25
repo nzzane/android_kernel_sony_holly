@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/xlog.h>
 #include <linux/module.h>
 
 #include <mach/upmu_sw.h>

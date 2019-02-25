@@ -1887,14 +1887,14 @@ void submit_bio(int rw, struct bio *bio)
                            int i;
                            struct bio_vec *bvec;
 
-
+                           //printk(KERN_INFO"submit_bio size:%d", bio->bi_size);
 			   bio_for_each_segment(bvec, bio, i)
                            {
 		              struct page_pid_logger *tmp_logger;
 		              extern unsigned char *page_logger;
 		              extern spinlock_t g_locker;
 		              unsigned long flags;
-
+		              //printk(KERN_INFO"submit_bio bvec:%p size:%d", bvec, bio->bi_size);
 		              if( page_logger && bvec->bv_page) {
 			         unsigned long page_index;
 	                 //#if defined(CONFIG_FLATMEM)
@@ -1902,7 +1902,7 @@ void submit_bio(int rw, struct bio *bio)
 			         //#else
 			         page_index = (unsigned long)(__page_to_pfn(bvec->bv_page))- PHYS_PFN_OFFSET;
 			         //#endif
-
+			         //printk(KERN_INFO"hank:submit_bio page_index:%lu", page_index);
 			         tmp_logger =((struct page_pid_logger *)page_logger) + page_index;
 			         spin_lock_irqsave(&g_locker, flags);
 			         if( page_index < num_physpages) {
@@ -1912,7 +1912,7 @@ void submit_bio(int rw, struct bio *bio)
 					tmp_logger->pid2 = current->pid;
 			         }
 			         spin_unlock_irqrestore(&g_locker, flags);
-
+			         //printk(KERN_INFO"hank tmp logger pid1:%u pid2:%u pfn:%d \n", tmp_logger->pid1, tmp_logger->pid2, (unsigned long)((page) - mem_map) );
 		              }
 
 
@@ -3140,6 +3140,9 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 {
 	int ret = 0;
 
+	if (!q->dev)
+		return ret;
+
 	spin_lock_irq(q->queue_lock);
 	if (q->nr_pending) {
 		ret = -EBUSY;
@@ -3167,6 +3170,9 @@ EXPORT_SYMBOL(blk_pre_runtime_suspend);
  */
 void blk_post_runtime_suspend(struct request_queue *q, int err)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_SUSPENDED;
@@ -3191,6 +3197,9 @@ EXPORT_SYMBOL(blk_post_runtime_suspend);
  */
 void blk_pre_runtime_resume(struct request_queue *q)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	q->rpm_status = RPM_RESUMING;
 	spin_unlock_irq(q->queue_lock);
@@ -3213,6 +3222,9 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  */
 void blk_post_runtime_resume(struct request_queue *q, int err)
 {
+	if (!q->dev)
+		return;
+
 	spin_lock_irq(q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_ACTIVE;

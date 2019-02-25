@@ -31,38 +31,12 @@
 #include <linux/cpuidle.h>
 #include <linux/timer.h>
 #include <linux/wakeup_reason.h>
-#ifdef CONFIG_PM_WAKEUP_TIMES
-#include <linux/math64.h>
-#include <linux/wait.h>
-#endif
 #include <linux/aee.h>
 
 #include "../base.h"
 #include "power.h"
 
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-
-/* When enabled, we show driver resume time */
-enum {
-	DEBUG_ALL_DRIVER = 1U << 0, /* when enable this, print all */
-	DEBUG_BY_DRIVER_NAME = 1U << 1,
-	DEBUG_BY_FUNCTION_NAME = 1U << 2,
-	DEBUG_BY_RESUME_TIME = 1U << 3,
-	DEBUG_TOP_TEN = 1U << 4,
-};
-
-/* the file node will be /sys/module/main/parameters/debug_mask */
-
-// %%TBTA: maybe need to set to 0 at user build
-static uint __read_mostly debug_mask = (DEBUG_ALL_DRIVER | DEBUG_TOP_TEN);
-
-module_param(debug_mask, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_mask, "mask for debugging resume time");
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
-
-// #define LOG
+#define LOG
 
 #define HIB_DPM_DEBUG 0
 #define _TAG_HIB_M "HIB/DPM"
@@ -94,11 +68,6 @@ static LIST_HEAD(dpm_late_early_list);
 static LIST_HEAD(dpm_noirq_list);
 
 struct suspend_stats suspend_stats;
-#ifdef CONFIG_PM_WAKEUP_TIMES
-struct suspend_stats_queue suspend_stats_queue;
-static ktime_t suspend_start_time;
-static ktime_t resume_start_time;
-#endif
 static DEFINE_MUTEX(dpm_list_mtx);
 static pm_message_t pm_transition;
 
@@ -418,139 +387,6 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 		usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
 }
 
-#ifdef CONFIG_PM_WAKEUP_TIMES
-static void dpm_log_wakeup_stats(pm_message_t state, ktime_t *start_time,
-        struct stats_wakeup_time *min_time,
-        struct stats_wakeup_time *max_time,
-        struct stats_wakeup_time *last_time,
-        ktime_t *avg_time)
-{
-    ktime_t end_time, duration, prev_duration, sum;
-    struct stats_wakeup_time prev;
-    u64 avg_ns;
-    char buf[32] = {0};
-    unsigned int nr = 0;
-
-    if (!ktime_to_ns(*start_time))
-        return;
-
-    switch (state.event) {
-    case PM_EVENT_RESUME:
-        snprintf(buf, sizeof(buf), "%s", "resume time:");
-        break;
-    case PM_EVENT_SUSPEND:
-        snprintf(buf, sizeof(buf), "%s", "suspend time:");
-        break;
-    default:
-        return;
-    }
-
-    end_time = ktime_get_boottime();
-    prev = *last_time;
-    prev_duration = ktime_sub(prev.end, prev.start);
-    last_time->end = end_time;
-    last_time->start = *start_time;
-    duration = ktime_sub(end_time, *start_time);
-    if (ktime_compare(duration,
-        ktime_sub(max_time->end, max_time->start)) > 0)
-        *max_time = *last_time;
-
-    if (!ktime_to_ns(ktime_sub(min_time->end, min_time->start)))
-        *min_time = *last_time;
-
-    if (ktime_compare(duration,
-        ktime_sub(min_time->end, min_time->start)) < 0)
-        *min_time = *last_time;
-
-    if (ktime_to_ns(prev_duration))
-        nr++;
-
-    if (ktime_to_ns(*avg_time))
-        nr++;
-
-    sum = ktime_add(ktime_add(*avg_time, prev_duration), duration);
-    avg_ns = div_u64(ktime_to_ns(sum), (nr + 1));
-    *avg_time = ktime_set(0, avg_ns);
-    *start_time = ktime_set(0, 0);
-
-    pr_debug("%s\n%s  %llums\n%s  %llums\n %s  %llums\n%s %llums\n", buf,
-            "  min:",
-            ktime_to_ms(ktime_sub(min_time->end, min_time->start)),
-            "  max:",
-            ktime_to_ms(ktime_sub(max_time->end, max_time->start)),
-            "  last:", ktime_to_ms(duration),
-            "  avg:", ktime_to_ms(*avg_time));
-    suspend_stats_queue.resume_done = 1;
-    wake_up(&suspend_stats_queue.wait_queue);
-}
-
-/**
- * log_resume_start - log resume start point.
- * @state: PM transition of the system being carried out.
- *
- */
-void log_resume_start(pm_message_t state)
-{
-    if (state.event == PM_EVENT_RESUME)
-        resume_start_time = ktime_get_boottime();
-}
-EXPORT_SYMBOL_GPL(log_resume_start);
-
-/**
- * log_resume_end - log resume end point.
- * @state: PM transition of the system being carried out.
- *
- */
-void log_resume_end(pm_message_t state)
-{
-    if (state.event == PM_EVENT_RESUME) {
-        dpm_log_wakeup_stats(state, &resume_start_time,
-            &suspend_stats.resume_min_time,
-            &suspend_stats.resume_max_time,
-            &suspend_stats.resume_last_time,
-            &suspend_stats.resume_avg_time);
-    } else {
-        resume_start_time = ktime_set(0, 0);
-    }
-}
-EXPORT_SYMBOL_GPL(log_resume_end);
-
-/**
- * log_suspend_start - log suspend start point.
- * @state: PM transition of the system being carried out.
- *
- */
-int log_suspend_start(pm_message_t state)
-{
-    if (state.event == PM_EVENT_SUSPEND)
-        suspend_start_time = ktime_get_boottime();
-    return 0;
-}
-EXPORT_SYMBOL_GPL(log_suspend_start);
-
-/**
- * log_suspend_end - log suspend end point.
- * @state: PM transition of the system being carried out.
- *
- */
-int log_suspend_end(pm_message_t state)
-{
-    if (state.event == PM_EVENT_SUSPEND) {
-        dpm_log_wakeup_stats(state, &suspend_start_time,
-            &suspend_stats.suspend_min_time,
-            &suspend_stats.suspend_max_time,
-            &suspend_stats.suspend_last_time,
-            &suspend_stats.suspend_avg_time);
-    } else {
-        suspend_start_time = ktime_set(0, 0);
-    }
-
-    return 0;
-}
-EXPORT_SYMBOL_GPL(log_suspend_end);
-
-#endif
-
 static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 			    pm_message_t state, char *info)
 {
@@ -805,82 +641,12 @@ static int device_resume_index = 0;
  * @state: PM transition of the system being carried out.
  * @async: If true, the device is being resumed asynchronously.
  */
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-typedef struct {
-	u64 cost_time;
-	struct device *dev;
-} __TOP_TEN__;
-
-#define TOP_CNT 10
-__TOP_TEN__	top_async[TOP_CNT];
-__TOP_TEN__	top_sync[TOP_CNT];
-
-void init_top_ten(bool async) {
-	if (async)
-		memset(top_async, 0x00, sizeof(top_async));
-	else
-		memset(top_sync, 0x00, sizeof(top_sync));
-}
-
-void print_top_ten(bool async) {
-	int i;
-	__TOP_TEN__ *top_ten = async ? top_async : top_sync;
-
-	pr_info("[PM] start to print %s top ten\n", async ? "A" : "S");
-
-	for (i = 0; i < TOP_CNT; i++) {
-		int usecs;
-
-		if (!top_ten[i].dev)
-			break;
-
-		do_div(top_ten[i].cost_time, NSEC_PER_USEC);
-
-		usecs = top_ten[i].cost_time;
-		dev_info(top_ten[i].dev, "[PM] costs %ld.%03ld ms\n", 
-			usecs / USEC_PER_MSEC , usecs % USEC_PER_MSEC);;
-	}
-}
-
-void rec_top_ten(struct device *dev, bool async, u64 usecs64) {
-	int i;
-	__TOP_TEN__ temp_top_ten1, temp_top_ten2;
-	__TOP_TEN__ *top_ten = async ? top_async : top_sync;
-
-	for (i = 0; i < TOP_CNT; i ++) {
-		if (usecs64 > top_ten[i].cost_time) {
-			temp_top_ten1.cost_time = usecs64;
-			temp_top_ten1.dev = dev;
-
-			do {
-				if (i < TOP_CNT) {
-					temp_top_ten2 = top_ten[i];
-					top_ten[i] = temp_top_ten1;
-					temp_top_ten1 = temp_top_ten2;
-				}
-				else 
-					break;
-				i++;
-			} while(1);
-
-			break;
-		}
-	}
-}
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
-
 static int device_resume(struct device *dev, pm_message_t state, bool async)
 {
 	pm_callback_t callback = NULL;
 	char *info = NULL;
 	int error = 0;
 	struct dpm_watchdog wd;
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-	ktime_t starttime;
-
-	if (debug_mask)
-		starttime = ktime_get();
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
@@ -993,33 +759,6 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
  End:
 	error = dpm_run_callback(callback, dev, state, info);
-
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-	if (debug_mask & DEBUG_ALL_DRIVER) {
-		u64 usecs64;
-		ktime_t endtime = ktime_get();
-
-		usecs64 = ktime_to_ns(ktime_sub(endtime, starttime));
-
-		/* if debugging top ten, don't print it immediately*/
-		if (debug_mask & DEBUG_TOP_TEN) {
-
-			/* to save time, do divide NSEC_PER_USEC here, divide it when print */
-			rec_top_ten(dev, async, usecs64);
-		}
-		else {
-			int usecs;
-
-			do_div(usecs64, NSEC_PER_USEC);
-
-			usecs = usecs64;
-
-			dev_info(dev, "[PM] %s costs %ld.%03ld ms\n",
-				async ? "A" : "S",
-				usecs / USEC_PER_MSEC , usecs % USEC_PER_MSEC);
-		}
-	}
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
 	dev->power.is_suspended = false;
 
  Unlock:
@@ -1069,11 +808,6 @@ void dpm_resume(pm_message_t state)
 	pm_transition = state;
 	async_error = 0;
 
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-	init_top_ten(true);
-	init_top_ten(false);
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
-
 	list_for_each_entry(dev, &dpm_suspended_list, power.entry) {
 		INIT_COMPLETION(dev->power.completion);
 		if (is_async(dev)) {
@@ -1108,12 +842,6 @@ void dpm_resume(pm_message_t state)
 	
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+[ */
-	if (debug_mask & DEBUG_ALL_DRIVER) {
-		print_top_ten(true);
-		print_top_ten(false);
-	}
-/* SUSPEND_RESUME_WAKELOCK_LOG-00+] */
 	dpm_show_time(starttime, state, NULL);
 }
 EXPORT_SYMBOL_GPL(dpm_resume);

@@ -1,6 +1,5 @@
 /* alps/ALPS_SW/TRUNK/MAIN/alps/kernel/drivers/hwmon/mt6516/hwmsen_dev.c
- * 
- * Copyright(C) 2015 Foxconn International Holdings, Ltd. All rights reserved.
+ *
  * (C) Copyright 2009 
  * MediaTek <www.MediaTek.com>
  *
@@ -193,10 +192,7 @@ int hwmsen_aal_get_data()
 	hwm_sensor_data sensor_data;
 	int als_data = 0;
 	
-    //CORE-KH-ReduceDbgMsg-00-a
-    //#ifndef CONFIG_FIH_REDUCE_DBGMESG
-	//HWM_LOG("hwmsen_aal_get_data1\n");
-    //#endif
+	HWM_LOG("hwmsen_aal_get_data1\n");
 	if(!hwm_obj)
 	{
 		HWM_ERR("AAL hwmdev obj pointer is NULL!\n");
@@ -210,19 +206,13 @@ int hwmsen_aal_get_data()
 
 	mutex_lock(&hwm_obj->dc->lock);
 	cxt = hwm_obj->dc->cxt[ID_LIGHT];
-    //CORE-KH-ReduceDbgMsg-00-a
-    //#ifndef CONFIG_FIH_REDUCE_DBGMESG
-	//HWM_LOG("hwmsen_aal_get_data2\n");
-    //#endif
+	HWM_LOG("hwmsen_aal_get_data2\n");
 	err = cxt->obj.sensor_operate(cxt->obj.self,SENSOR_GET_DATA, NULL, 0, 
 		&sensor_data, sizeof(hwm_sensor_data), &out_size);
 	if(err)
 	{
 		mutex_unlock(&hwm_obj->dc->lock);
-    //CORE-KH-ReduceDbgMsg-00-a
-    //#ifndef CONFIG_FIH_REDUCE_DBGMESG
-		//HWM_ERR("get data from sensor (%d) fails!!\n", ID_LIGHT);
-    //#endif
+		HWM_ERR("get data from sensor (%d) fails!!\n", ID_LIGHT);
 		return -ENODEV;
 	}
 	else
@@ -230,10 +220,7 @@ int hwmsen_aal_get_data()
 		als_data = sensor_data.values[0];
 	}
 	mutex_unlock(&hwm_obj->dc->lock);
-    //CORE-KH-ReduceDbgMsg-00-a
-    //#ifndef CONFIG_FIH_REDUCE_DBGMESG
-	//HWM_LOG("hwmsen_aal_get_data3\n");
-    //#endif
+	HWM_LOG("hwmsen_aal_get_data3\n");
 	return als_data;
 }
 
@@ -349,15 +336,13 @@ static void hwmsen_work_func(struct work_struct *work)
 			else
 			{
 				// data changed, update the data
-				//SW-PRODUCTION-JH-Fix DMS07722385 DMS07722382 DMS07722396*
 				if((sensor_data.values[0] != obj_data.sensors_data[idx].values[0]) 
 					|| (sensor_data.values[1] != obj_data.sensors_data[idx].values[1])
 					|| (sensor_data.values[2] != obj_data.sensors_data[idx].values[2])
-					|| (idx == ID_MAGNETIC) || (idx == ID_ACCELEROMETER)
-					|| (idx == ID_GYROSCOPE) || (idx == ID_ORIENTATION))
+					|| (idx == ID_MAGNETIC))
 				{	
 				    if( 0 == sensor_data.values[0] && 0==sensor_data.values[1] 
-						&& 0 == sensor_data.values[2] && (idx != ID_GYROSCOPE))
+						&& 0 == sensor_data.values[2])
 				    {
 				    	
 				       continue;
@@ -1068,7 +1053,7 @@ static int init_static_data(void)
 //	obj_data.lock = __MUTEX_INITIALIZER(obj_data.lock);	
 	for(i=0; i < MAX_ANDROID_SENSOR_NUM; i++)
 	{
-		//dev_cxt.cxt[i] = NULL;		
+		dev_cxt.cxt[i] = NULL;		
 		memset(&obj_data.sensors_data[i], SENSOR_INVALID_VALUE, sizeof(hwm_sensor_data));
 		obj_data.sensors_data[i].sensor = i;
 		
@@ -1179,7 +1164,6 @@ static long hwmsen_unlocked_ioctl(struct file *fp, unsigned int cmd, unsigned lo
 	struct sensor_delay delayPara;
 	hwm_trans_data hwm_sensors_data;	
 	int i = 0;
-	int idx = 0;
 	atomic_t delaytemp;
 	atomic_set(&delaytemp, 200);//used to finding fastest sensor polling rate
 	//int delaytemp=200;//used to finding fastest sensor polling rate
@@ -1228,31 +1212,31 @@ static long hwmsen_unlocked_ioctl(struct file *fp, unsigned int cmd, unsigned lo
 			break;
 
 		case HWM_IO_GET_SENSORS_DATA:			
-		if (copy_from_user(&hwm_sensors_data, argp, sizeof(hwm_sensors_data))) {
-			HWM_ERR("copy_from_user fail!!\n");
-			return -EFAULT;
-		}
-
-		mutex_lock(&obj_data.lock);
-		/*memcpy(hwm_sensors_data.data, &(obj_data.sensors_data),
-			sizeof(hwm_sensor_data) * MAX_ANDROID_SENSOR_NUM);*/
-		for (i = 0, idx = 0;
-		     i < MAX_ANDROID_SENSOR_NUM && idx < MAX_SENSOR_DATA_UPDATE_ONCE; i++) {
-			if (hwm_sensors_data.data_type & (1LL << i)) {
-				memcpy(&hwm_sensors_data.data[idx], &(obj_data.sensors_data[i]),
-				       sizeof(hwm_sensor_data));
-				hwm_sensors_data.data[idx].update = 1;
-				idx++;
+			if(copy_from_user(&hwm_sensors_data, argp, sizeof(hwm_sensors_data)))
+			{
+				HWM_ERR("copy_from_user fail!!\n");
+				return -EFAULT;
 			}
-		}
-		if (idx < MAX_SENSOR_DATA_UPDATE_ONCE)
-			hwm_sensors_data.data[idx].update = 0;
-		mutex_unlock(&obj_data.lock);
-		if (copy_to_user(argp, &hwm_sensors_data, sizeof(hwm_sensors_data))) {
-			HWM_ERR("copy_to_user fail!!\n");
-			return -EFAULT;
-		}
-		break;
+			mutex_lock(&obj_data.lock);			
+			memcpy(hwm_sensors_data.data, &(obj_data.sensors_data),sizeof(hwm_sensor_data) * MAX_ANDROID_SENSOR_NUM);
+			for(i = 0; i < MAX_ANDROID_SENSOR_NUM; i++)
+			{
+				if(hwm_sensors_data.date_type & 1<<i)
+				{					
+					hwm_sensors_data.data[i].update = 1;
+				}
+				else
+				{
+					hwm_sensors_data.data[i].update = 0;
+				}
+			}
+			mutex_unlock(&obj_data.lock);
+			if(copy_to_user(argp, &hwm_sensors_data, sizeof(hwm_sensors_data)))
+			{
+				HWM_ERR("copy_to_user fail!!\n");
+				return -EFAULT;
+			}
+			break;
 			
 		case HWM_IO_ENABLE_SENSOR_NODATA:
 			if(copy_from_user(&flag, argp, sizeof(flag)))
@@ -1339,7 +1323,7 @@ static int hwmsen_probe(struct platform_device *pdev)
 		HWM_ERR("unable to create attributes!!\n");
 		goto exit_hwmsen_create_attr_failed;
 	}
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
 	// add for fix resume bug
     atomic_set(&(hwm_obj->early_suspend), 0);
 	hwm_obj->early_drv.level    = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1,
@@ -1740,9 +1724,8 @@ static void __exit hwmsen_exit(void)
 	platform_driver_unregister(&hwmsen_driver);    
 }
 /*----------------------------------------------------------------------------*/
-late_initcall(hwmsen_init);
-//module_init(hwmsen_init);
-//module_exit(hwmsen_exit);
+module_init(hwmsen_init);
+module_exit(hwmsen_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("sensor device driver");
 MODULE_AUTHOR("Chunlei Wang<chunlei.wang@mediatek.com");

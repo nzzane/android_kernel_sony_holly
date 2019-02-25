@@ -140,16 +140,6 @@
 	msr	spsr_el1, x22
 	.if	\el == 0
 	msr	sp_el0, x23
-#ifdef CONFIG_ARM_ERRATA_845719
-	tbz 	x22, #4, 1f
-#ifdef CONFIG_PID_IN_CONTEXTIDR
-	mrs	x29, contextidr_el1
-	msr	contextidr_el1, x29
-#else
-	msr	contextidr_el1, xzr
-#endif
-1:
-#endif
 	.endif
 	pop	x10, x11
 	pop	x12, x13
@@ -185,7 +175,7 @@
 	ldp	x10, x11, [sp], #16
 	ldp	x12, x13, [sp], #16
 	ldp	x14, x15, [sp], #16
-	tbnz 	x22, #4, 1f
+	tbnz 	x22, #4, 1f 
 
 	ldp	x16, x17, [sp], #16
 	ldp	x18, x19, [sp], #16
@@ -198,16 +188,7 @@
 	eret					// return to kernel
 	// could not run here
 
-1:
-#ifdef CONFIG_ARM_ERRATA_845719
-#ifdef CONFIG_PID_IN_CONTEXTIDR
-	mrs     x29, contextidr_el1
-	msr     contextidr_el1, x29
-#else
-	msr     contextidr_el1, xzr
-#endif
-#endif
-	add	sp, sp, #S_X29-S_X15
+1:	add	sp, sp, #S_X29-S_X15
 	ldr	lr, [sp], #S_FRAME_SIZE - S_LR	// load LR and restore SP
 	eret					// return to kernel
 	.endm
@@ -345,8 +326,8 @@ el1_sync_nest:
 	cmp	w4, #0x2
 	b.lt	el1_sync_nest_skip
 	bl	aee_stop_nested_panic
-el1_sync_nest_skip:
-	mrs	x1, esr_el1			// read the syndrome register
+el1_sync_nest_skip:	
+	mrs	x1, esr_el1			// read the syndrome register	
 	lsr	x24, x1, #ESR_EL1_EC_SHIFT	// exception class
 	cmp	x24, #ESR_EL1_EC_DABT_EL1	// data abort in EL1
 	b.eq	el1_da
@@ -428,7 +409,6 @@ el1_irq:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
-    bl  MT_trace_hardirqs_off
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
 	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
@@ -444,7 +424,6 @@ el1_irq:
 	bl	el1_preempt
 1:
 #endif
-    bl  MT_trace_hardirqs_on
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_on
 #endif
@@ -621,7 +600,7 @@ el0_inv:
 	mov	x0, sp
 	mov	x1, #BAD_SYNC
 	mrs	x2, esr_el1
-	b	bad_mode
+	b	bad_el0_sync
 ENDPROC(el0_sync)
 
 	.align	6
@@ -634,7 +613,6 @@ el0_irq_naked:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
 #endif
-    bl  MT_trace_hardirqs_off
 	get_thread_info tsk
 #ifdef CONFIG_PREEMPT
 	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
@@ -651,7 +629,6 @@ el0_irq_naked:
 	str	x1, [x1]			// BUG
 1:
 #endif
-    bl  MT_trace_hardirqs_on
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_on
 #endif

@@ -455,7 +455,6 @@ void mtlte_hif_sdio_txrx_proc_enable(KAL_UINT32 enable) ;
 
 void mtlte_hif_sdio_dump(void) ;
 
-KAL_INT32 mtlte_hif_force_md_assert_by_swint(void);
 
 /*************************************************************
 *

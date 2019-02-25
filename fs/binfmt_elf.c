@@ -38,10 +38,6 @@
 #include <asm/param.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_MTK_EXTMEM
-#include <linux/exm_driver.h>
-#endif
-
 #ifndef user_long_t
 #define user_long_t long
 #endif
@@ -686,16 +682,16 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			 */
 			would_dump(bprm, interpreter);
 
-			retval = kernel_read(interpreter, 0, bprm->buf,
-					     BINPRM_BUF_SIZE);
-			if (retval != BINPRM_BUF_SIZE) {
+			/* Get the exec headers */
+			retval = kernel_read(interpreter, 0,
+					     (void *)&loc->interp_elf_ex,
+					     sizeof(loc->interp_elf_ex));
+			if (retval != sizeof(loc->interp_elf_ex)) {
 				if (retval >= 0)
 					retval = -EIO;
 				goto out_free_dentry;
 			}
 
-			/* Get the exec headers */
-			loc->interp_elf_ex = *((struct elfhdr *)bprm->buf);
 			break;
 		}
 		elf_ppnt++;
@@ -760,6 +756,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	    i < loc->elf_ex.e_phnum; i++, elf_ppnt++) {
 		int elf_prot = 0, elf_flags;
 		unsigned long k, vaddr;
+		unsigned long total_size = 0;
 
 		if (elf_ppnt->p_type != PT_LOAD)
 			continue;
@@ -824,10 +821,16 @@ static int load_elf_binary(struct linux_binprm *bprm)
 #else
 			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
 #endif
+			total_size = total_mapping_size(elf_phdata,
+							loc->elf_ex.e_phnum);
+			if (!total_size) {
+				retval = -EINVAL;
+				goto out_free_dentry;
+			}
 		}
 
 		error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
-				elf_prot, elf_flags, 0);
+				elf_prot, elf_flags, total_size);
 		if (BAD_ADDR(error)) {
 			send_sig(SIGKILL, current, 0);
 			retval = IS_ERR((void *)error) ?
@@ -1102,6 +1105,11 @@ out:
  * Jeremy Fitzhardinge <jeremy@sw.oz.au>
  */
 
+#ifdef CONFIG_MTK_EXTMEM
+extern bool extmem_in_mspace(struct vm_area_struct *vma);
+extern unsigned long get_virt_from_mspace(unsigned long pa);
+#endif
+
 /*
  * The purpose of always_dump_vma() is to make sure that special kernel mappings
  * that are useful for post-mortem analysis are included in every core dump.
@@ -1123,10 +1131,10 @@ static bool always_dump_vma(struct vm_area_struct *vma)
 		return true;
 
 #ifdef CONFIG_MTK_EXTMEM
-	if (extmem_in_mspace(vma))
+	if (extmem_in_mspace(vma)) {
 		return true;
+	}	
 #endif
-
 	return false;
 }
 
@@ -2213,11 +2221,10 @@ static int elf_core_dump(struct coredump_params *cprm)
 			for (addr = vma->vm_start; addr < end; addr += PAGE_SIZE, extmem_va += PAGE_SIZE) {
 				int stop;
 				int dump_write_ret = dump_write(cprm->file, extmem_va, PAGE_SIZE);
-
 				stop = ((size += PAGE_SIZE) > cprm->limit) || (!dump_write_ret);
 				if (stop) {
-					pr_err("[EXT_MEM]stop addr:0x%lx, size:%zx, limit:0x%lx, dump_write_ret:%d\n", 
-						addr, size, cprm->limit, dump_write_ret);
+					printk(KERN_WARNING "[EXT_MEM]stop addr:0x%lx, size:%zx, limit:0x%lx, dump_write_ret:%d\n", 
+							addr, size, cprm->limit, dump_write_ret);
 					goto end_coredump;
 				}
 			}

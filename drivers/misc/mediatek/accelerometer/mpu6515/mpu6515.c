@@ -38,9 +38,9 @@
 
 #include <accel.h>
 #include <linux/batch.h>
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
 
@@ -74,9 +74,9 @@ static int mpu6515_resume(struct i2c_client *client);
 static int gsensor_local_init(void);
 static int gsensor_remove(void);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int gsensor_setup_irq(void);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 static int gsensor_set_delay(u64 ns);
 /*----------------------------------------------------------------------------*/
 typedef enum
@@ -115,9 +115,9 @@ struct mpu6515_i2c_data
     struct i2c_client *client;
     struct acc_hw *hw;
     struct hwmsen_convert   cvt;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct work_struct	irq_work;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
     /*misc*/
     struct data_resolution *reso;
@@ -131,9 +131,9 @@ struct mpu6515_i2c_data
     s8                      offset[MPU6515_AXES_NUM+1];  /*+1: for 4-byte alignment*/
     s16                     data[MPU6515_AXES_NUM+1];
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     int                     SCP_init_done;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #if defined(CONFIG_MPU6515_LOWPASS)
     atomic_t                firlen;
@@ -255,7 +255,7 @@ int MPU6515_i2c_master_recv(u8 *buf, u8 len)
 }
 EXPORT_SYMBOL(MPU6515_i2c_master_recv);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 int MPU6515_SCP_SetPowerMode(bool enable, int sensorType)
 {
     static bool gsensor_scp_en_status = false;
@@ -306,7 +306,7 @@ int MPU6515_SCP_SetPowerMode(bool enable, int sensorType)
     return err;
 }
 EXPORT_SYMBOL(MPU6515_SCP_SetPowerMode);
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 /*----------------------------------------------------------------------------*/
 static int mpu_i2c_read_block(struct i2c_client *client, u8 addr, u8 *data, u8 len){
     int err; 
@@ -602,7 +602,7 @@ static int MPU6515_ResetCalibration(struct i2c_client *client)
 {
     struct mpu6515_i2c_data *obj = i2c_get_clientdata(client);
     int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     MPU6515_CUST_DATA *pCustData;
     unsigned int len;
@@ -612,7 +612,7 @@ static int MPU6515_ResetCalibration(struct i2c_client *client)
     GSE_FUN();
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     if (0 != obj->SCP_init_done)
     {
         pCustData = (MPU6515_CUST_DATA *)&data.set_cust_req.custData;
@@ -705,7 +705,7 @@ static int MPU6515_WriteCalibration(struct i2c_client *client, int dat[MPU6515_A
     struct mpu6515_i2c_data *obj = i2c_get_clientdata(client);
     int err;
     int cali[MPU6515_AXES_NUM], raw[MPU6515_AXES_NUM];
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     MPU6515_CUST_DATA *pCustData;
     unsigned int len;
@@ -726,7 +726,7 @@ static int MPU6515_WriteCalibration(struct i2c_client *client, int dat[MPU6515_A
             obj->offset[MPU6515_AXIS_X], obj->offset[MPU6515_AXIS_Y], obj->offset[MPU6515_AXIS_Z],
             obj->cali_sw[MPU6515_AXIS_X], obj->cali_sw[MPU6515_AXIS_Y], obj->cali_sw[MPU6515_AXIS_Z]);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     pCustData = (MPU6515_CUST_DATA *)data.set_cust_req.custData;
     data.set_cust_req.sensorType = ID_ACCELEROMETER;
     data.set_cust_req.action = SENSOR_HUB_SET_CUST;
@@ -885,7 +885,7 @@ static int MPU6515_SetBWRate(struct i2c_client *client, u8 bwrate)
 /*----------------------------------------------------------------------------*/
 static int MPU6515_Dev_Reset(struct i2c_client *client)
 {
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     u8 databuf[10];    
     int res = 0;
 
@@ -941,7 +941,7 @@ static int MPU6515_Dev_Reset(struct i2c_client *client)
     }while((databuf[0]&MPU6515_DEV_RESET) != 0);
 
     msleep(50);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     return MPU6515_SUCCESS;    
 }
 
@@ -949,7 +949,7 @@ static int MPU6515_Dev_Reset(struct i2c_client *client)
 /*----------------------------------------------------------------------------*/
 static int MPU6515_Reset(struct i2c_client *client)
 {
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     u8 databuf[10];    
     int res = 0;
 
@@ -969,7 +969,7 @@ static int MPU6515_Reset(struct i2c_client *client)
     }
 
     msleep(20);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     return MPU6515_SUCCESS;    
 }
 
@@ -1063,13 +1063,13 @@ static int mpu6515_init_client(struct i2c_client *client, int reset_cali)
 
     gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = obj->reso->sensitivity;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     res = gsensor_setup_irq();
     if(res != MPU6515_SUCCESS)
 	{
 		return res;
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
     res = MPU6515_SetIntEnable(client, 0x00);//disable INT
     if (res != MPU6515_SUCCESS)
@@ -1808,7 +1808,7 @@ static int mpu6515_delete_attr(struct device_driver *driver)
 }
 
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static void gsensor_irq_work(struct work_struct *work)
 {
     struct mpu6515_i2c_data *obj = obj_i2c_data;
@@ -1919,7 +1919,7 @@ static int gsensor_setup_irq()
     
 	return err;
 }
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 /****************************************************************************** 
  * Function Configuration
 ******************************************************************************/
@@ -2169,19 +2169,19 @@ static int mpu6515_suspend(struct i2c_client *client, pm_message_t msg)
         }
         //mutex_lock(&gsensor_mutex);
         atomic_set(&obj->suspend, 1);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
         if ((err = MPU6515_SetPowerMode(obj->client, false)))
-#else //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifndef CUSTOM_KERNEL_SENSORHUB
         if (0)//(err = MPU6515_SCP_SetPowerMode(false, ID_ACCELEROMETER))) //need not disable g sensor in suspend mode if use sensor hub.
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
         {
             GSE_ERR("write power control fail!!\n");
             return err;
         }
         //mutex_unlock(&gsensor_mutex);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
         MPU6515_power(obj->hw, 0);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
         GSE_LOG("mpu6515_suspend ok\n");
     }
     return err;
@@ -2198,15 +2198,15 @@ static int mpu6515_resume(struct i2c_client *client)
         GSE_ERR("null pointer!!\n");
         return -EINVAL;
     }
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     MPU6515_power(obj->hw, 1);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     //mutex_lock(&gsensor_mutex);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     if ((err = mpu6515_init_client(client, 0)))
-#else //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifndef CUSTOM_KERNEL_SENSORHUB
     if (0)//(err = MPU6515_SCP_SetPowerMode(enable_status, ID_ACCELEROMETER))) //need not disable g sensor in suspend mode if use sensor hub.
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     {
         GSE_ERR("initialize client fail!!\n");
         return err;        
@@ -2233,17 +2233,17 @@ static void mpu6515_early_suspend(struct early_suspend *h)
     }
     //mutex_lock(&gsensor_mutex);
     atomic_set(&obj->suspend, 1); 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     if ((err = MPU6515_SetPowerMode(obj->client, false)))
-#else //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifndef CUSTOM_KERNEL_SENSORHUB
     if ((err = MPU6515_SCP_SetPowerMode(false, ID_ACCELEROMETER)))
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     {
         GSE_ERR("write power control fail!!\n");
         return;
     }
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     if (MPU6515_gyro_mode() == false)
     {
         MPU6515_Dev_Reset(obj->client);
@@ -2256,7 +2256,7 @@ static void mpu6515_early_suspend(struct early_suspend *h)
     //mutex_unlock(&gsensor_mutex);
     
     MPU6515_power(obj->hw, 0);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
 }
 /*----------------------------------------------------------------------------*/
 static void mpu6515_late_resume(struct early_suspend *h)
@@ -2270,15 +2270,15 @@ static void mpu6515_late_resume(struct early_suspend *h)
         GSE_ERR("null pointer!!\n");
         return;
     }
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     MPU6515_power(obj->hw, 1);
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     //mutex_lock(&gsensor_mutex);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     if ((err = mpu6515_init_client(obj->client, 0)))
-#else //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else //#ifndef CUSTOM_KERNEL_SENSORHUB
     if ((err = MPU6515_SCP_SetPowerMode(enable_status, ID_ACCELEROMETER)))
-#endif //#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifndef CUSTOM_KERNEL_SENSORHUB
     {
         GSE_ERR("initialize client fail!!\n");
         return;        
@@ -2297,7 +2297,7 @@ static int gsensor_open_report_data(int open)
 }
 /*----------------------------------------------------------------------------*/
 // if use  this typ of enable , Gsensor only enabled but not report inputEvent to HAL
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static int gsensor_enable_nodata(int en)
 {
     int err = 0;
@@ -2339,7 +2339,9 @@ static int gsensor_enable_nodata(int en)
 #endif
 /*----------------------------------------------------------------------------*/
 // if use  this typ of enable , Gsensor only enabled but not report inputEvent to HAL
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+// m sensor daemon may enable sensor power, but this does not mean sensor hub power on,
+// we use another power status variable for the projects with sensor hub.
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int scp_gsensor_enable_nodata(int en)
 {
     int err = 0;
@@ -2388,12 +2390,12 @@ static int gsensor_set_delay(u64 ns)
 {
     int err = 0;
     int value;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 	int sample_delay;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #ifdef GSENSOR_UT
     GSE_FUN();
@@ -2401,7 +2403,7 @@ static int gsensor_set_delay(u64 ns)
 
     value = (int)ns/1000/1000;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.set_delay_req.sensorType = ID_ACCELEROMETER;
     req.set_delay_req.action = SENSOR_HUB_SET_DELAY;
     req.set_delay_req.delay = value;
@@ -2412,7 +2414,7 @@ static int gsensor_set_delay(u64 ns)
         GSE_ERR("SCP_sensorHub_req_send!\n");
         return err;
     }
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)    
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB    
 	if(value <= 5)
 	{
 		sample_delay = MPU6515_BW_184HZ;
@@ -2450,7 +2452,7 @@ static int gsensor_set_delay(u64 ns)
 		atomic_set(&obj_i2c_data->filter, 1);
 	#endif
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
     
     GSE_LOG("gsensor_set_delay (%d)\n",value);
 
@@ -2459,17 +2461,17 @@ static int gsensor_set_delay(u64 ns)
 /*----------------------------------------------------------------------------*/
 static int gsensor_get_data(int* x ,int* y,int* z, int* status)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
     int err = 0;
 #else
     char buff[MPU6515_BUFSIZE];
-#endif //#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif //#ifdef CUSTOM_KERNEL_SENSORHUB
 
     //GSE_FUN();
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_ACCELEROMETER;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -2489,9 +2491,9 @@ static int gsensor_get_data(int* x ,int* y,int* z, int* status)
     }
 
     //sscanf(buff, "%x %x %x", req.get_data_rsp.int16_Data[0], req.get_data_rsp.int16_Data[1], req.get_data_rsp.int16_Data[2]);
-    *x = (int)req.get_data_rsp.int16_Data[0]*GRAVITY_EARTH_1000/1000;
-    *y = (int)req.get_data_rsp.int16_Data[1]*GRAVITY_EARTH_1000/1000;
-    *z = (int)req.get_data_rsp.int16_Data[2]*GRAVITY_EARTH_1000/1000;
+    *x = req.get_data_rsp.int16_Data[0];
+    *y = req.get_data_rsp.int16_Data[1];
+    *z = req.get_data_rsp.int16_Data[2];
     //GSE_ERR("x = %d, y = %d, z = %d\n", *x, *y, *z);
     *status = SENSOR_STATUS_ACCURACY_MEDIUM;
 
@@ -2499,7 +2501,7 @@ static int gsensor_get_data(int* x ,int* y,int* z, int* status)
 	{
         GSE_ERR("x = %d, y = %d, z = %d\n", *x, *y, *z);
 	}
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
     mutex_lock(&gsensor_mutex);
 	MPU6515_ReadSensorData(obj_i2c_data->client, buff, MPU6515_BUFSIZE);
 	mutex_unlock(&gsensor_mutex);
@@ -2541,9 +2543,9 @@ static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_
         goto exit;
     }
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     INIT_WORK(&obj->irq_work, gsensor_irq_work);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
     obj_i2c_data = obj;
     obj->client = client;
@@ -2558,9 +2560,9 @@ static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_
 
     atomic_set(&obj->trace, 0);
     atomic_set(&obj->suspend, 0);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     obj->SCP_init_done = 0;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #ifdef CONFIG_MPU6515_LOWPASS
     if (obj->hw->firlen > C_MAX_FIR_LENGTH)
@@ -2603,14 +2605,14 @@ static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_
     }
 
     ctl.open_report_data= gsensor_open_report_data;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     ctl.enable_nodata = scp_gsensor_enable_nodata;
 #else
     ctl.enable_nodata = gsensor_enable_nodata;
 #endif
     ctl.set_delay  = gsensor_set_delay;
     ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     ctl.is_support_batch = obj->hw->is_batch_supported;
 #else
     ctl.is_support_batch = false;
@@ -2632,7 +2634,7 @@ static int mpu6515_i2c_probe(struct i2c_client *client, const struct i2c_device_
         goto exit_create_attr_failed;
     }
 
-    err = batch_register_support_info(ID_ACCELEROMETER,ctl.is_support_batch, 102, 0); //divisor is 1000/9.8
+    err = batch_register_support_info(ID_ACCELEROMETER,ctl.is_support_batch, 1000, 0);
     if(err)
     {
         GSE_ERR("register gsensor batch support err = %d\n", err);

@@ -30,8 +30,6 @@
 #define MRDUMP_FS_VFAT 1
 #define MRDUMP_FS_EXT4 2
 
-#define MRDUMP_GO_DUMP "MRDUMP04"
-
 typedef uint32_t arm32_gregset_t[18];
 typedef uint64_t aarch64_gregset_t[34];
 
@@ -44,9 +42,9 @@ struct mrdump_crash_record {
 	uint32_t fault_cpu;
  
 	union {
-		arm32_gregset_t arm32_regs;
-		aarch64_gregset_t aarch64_regs;
-	} cpu_regs[MRDUMP_CPU_MAX];
+		arm32_gregset_t arm32_cpu_regs[MRDUMP_CPU_MAX];
+		aarch64_gregset_t aarch64_cpu_regs[MRDUMP_CPU_MAX];
+	};
 };
 
 struct mrdump_machdesc {
@@ -72,11 +70,19 @@ struct mrdump_machdesc {
 	uint32_t output_lbaooo;
 };
 
+struct mrdump_cblock_result {
+	char status[128];
+
+	uint32_t log_size;
+	char log_buf[2048];
+};
+
 struct mrdump_control_block {
 	char sig[8];
 
 	struct mrdump_machdesc machdesc;
 	struct mrdump_crash_record crash_record;
+	struct mrdump_cblock_result result;
 };
 
 struct mrdump_platform {

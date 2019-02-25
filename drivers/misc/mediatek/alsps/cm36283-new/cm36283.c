@@ -30,7 +30,7 @@
 #include <mach/mt_pm_ldo.h>
 
 #include <alsps.h>
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
 #endif
 
@@ -97,7 +97,7 @@ struct cm36283_priv {
 	struct alsps_hw  *hw;
 	struct i2c_client *client;
 	struct work_struct	eint_work;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct work_struct init_done_work;
 #endif
 
@@ -199,7 +199,7 @@ typedef enum {
     CMC_TRC_DEBUG   = 0x8000,
 } CMC_TRC;
 /*-----------------------------------------------------------------------------*/
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static void cm36283_eint_unmask(void)
 {
 #ifdef CUST_EINT_ALS_NUM
@@ -214,7 +214,7 @@ static void cm36283_eint_unmask(void)
 }
 #endif
 /*-----------------------------------------------------------------------------*/
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static int cm36283_enable_eint(struct i2c_client *client)
 {
 	//struct cm36283_priv *obj = i2c_get_clientdata(client);        
@@ -234,8 +234,8 @@ static int cm36283_enable_eint(struct i2c_client *client)
 
     return 0;
 }
-#endif//#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifndef CUSTOM_KERNEL_SENSORHUB
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static int cm36283_disable_eint(struct i2c_client *client)
 {
 	//struct cm36283_priv *obj = i2c_get_clientdata(client);        
@@ -263,7 +263,7 @@ static int cm36283_disable_eint(struct i2c_client *client)
 
     return 0;
 }
-#endif//#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifndef CUSTOM_KERNEL_SENSORHUB
 int CM36283_i2c_master_operate(struct i2c_client *client, const char *buf, int count, int i2c_flag)
 {
 	int res = 0;
@@ -334,7 +334,7 @@ int cm36283_enable_ps(struct i2c_client *client, int enable)
 {
     struct cm36283_priv *obj = i2c_get_clientdata(client);
     int res;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
@@ -344,7 +344,7 @@ int cm36283_enable_ps(struct i2c_client *client, int enable)
     if(enable == 1)
     {
         APS_LOG("cm36283_enable_ps enable_ps\n");
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
         req.activate_req.sensorType = ID_PROXIMITY;
         req.activate_req.action = SENSOR_HUB_ACTIVATE;
         req.activate_req.enable = enable;
@@ -406,7 +406,7 @@ int cm36283_enable_ps(struct i2c_client *client, int enable)
     }
     else{
         APS_LOG("cm36283_enable_ps disable_ps\n");
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
         req.activate_req.sensorType = ID_PROXIMITY;
         req.activate_req.action = SENSOR_HUB_ACTIVATE;
         req.activate_req.enable = enable;
@@ -458,7 +458,7 @@ int cm36283_enable_als(struct i2c_client *client, int enable)
 {
 	struct cm36283_priv *obj = i2c_get_clientdata(client);
 	int res;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
@@ -468,7 +468,7 @@ int cm36283_enable_als(struct i2c_client *client, int enable)
     if(enable == 1)
     {
         APS_LOG("cm36283_enable_als enable_als\n");
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
         req.activate_req.sensorType = ID_PROXIMITY;
         req.activate_req.action = SENSOR_HUB_ACTIVATE;
         req.activate_req.enable = enable;
@@ -507,7 +507,7 @@ int cm36283_enable_als(struct i2c_client *client, int enable)
     }
     else{
         APS_LOG("cm36283_enable_als disable_als\n");
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
         req.activate_req.sensorType = ID_PROXIMITY;
         req.activate_req.action = SENSOR_HUB_ACTIVATE;
         req.activate_req.enable = enable;
@@ -552,7 +552,7 @@ long cm36283_read_ps(struct i2c_client *client, u32 *data)
 {
 	long res;
     struct cm36283_priv *obj = i2c_get_clientdata(client);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
 #else
@@ -560,7 +560,7 @@ long cm36283_read_ps(struct i2c_client *client, u32 *data)
 #endif
 	//APS_FUN(f);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_PROXIMITY;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -611,7 +611,7 @@ long cm36283_read_ps(struct i2c_client *client, u32 *data)
 long cm36283_read_als(struct i2c_client *client, u32 *data)
 {
 	long res;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct cm36283_priv *obj = i2c_get_clientdata(client);
     SCP_SENSOR_HUB_DATA req;
     int len;
@@ -621,7 +621,7 @@ long cm36283_read_als(struct i2c_client *client, u32 *data)
 
 	//APS_FUN(f);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_LIGHT;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -668,7 +668,7 @@ long cm36283_read_als(struct i2c_client *client, u32 *data)
 /********************************************************************/
 static int cm36283_get_ps_value(struct cm36283_priv *obj, u32 ps)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     return ps;
 #else
 	int val, mask = atomic_read(&obj->ps_mask);
@@ -740,7 +740,7 @@ static int cm36283_get_ps_value(struct cm36283_priv *obj, u32 ps)
 /********************************************************************/
 static int cm36283_get_als_value(struct cm36283_priv *obj, u32 als)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     return als;
 #else
 		int idx;
@@ -1185,7 +1185,7 @@ static int cm36283_create_attr(struct device_driver *driver)
 /*----------------------------------interrupt functions--------------------------------*/
 static int intr_flag = 0;
 /*----------------------------------------------------------------------------*/
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static int cm36283_check_intr(struct i2c_client *client) 
 {
 	int res;
@@ -1229,19 +1229,19 @@ static int cm36283_check_intr(struct i2c_client *client)
 	APS_ERR("cm36283_check_intr dev: %d\n", res);
 	return res;
 }
-#endif//#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifndef CUSTOM_KERNEL_SENSORHUB
 /*----------------------------------------------------------------------------*/
 static void cm36283_eint_work(struct work_struct *work)
 {
     int res = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #else
 	struct cm36283_priv *obj = (struct cm36283_priv *)container_of(work, struct cm36283_priv, eint_work);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 	
 	APS_LOG("cm36283 int top half time = %lld\n", int_top_time);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     res = ps_report_interrupt_data(intr_flag);
     if(res != 0)
     {
@@ -1262,7 +1262,7 @@ static void cm36283_eint_work(struct work_struct *work)
 	EXIT_INTR_ERR:
     cm36283_eint_unmask();
     APS_ERR("cm36283_eint_work err: %d\n", res);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 }
 /*----------------------------------------------------------------------------*/
 static void cm36283_init_done_work(struct work_struct *work)
@@ -1305,7 +1305,7 @@ static void cm36283_init_done_work(struct work_struct *work)
     }
 }
 /*----------------------------------------------------------------------------*/
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 static void cm36283_eint_func(void)
 {
 	struct cm36283_priv *obj = g_cm36283_ptr;
@@ -1357,7 +1357,7 @@ static int cm36283_irq_handler(void* data, uint len)
 
     return 0;
 }
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 /*----------------------------------------------------------------------------*/
 int cm36283_setup_eint(struct i2c_client *client)
 {
@@ -1366,7 +1366,7 @@ int cm36283_setup_eint(struct i2c_client *client)
 
 	g_cm36283_ptr = obj;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     err = SCP_sensorHub_rsp_registration(ID_PROXIMITY, cm36283_irq_handler);
 #else	
 	mt_set_gpio_dir(GPIO_ALS_EINT_PIN, GPIO_DIR_IN);
@@ -1389,7 +1389,7 @@ int cm36283_setup_eint(struct i2c_client *client)
 #endif
 
     cm36283_eint_unmask();
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
     return err;
 }
 /*-------------------------------MISC device related------------------------------------------*/
@@ -1415,7 +1415,7 @@ static int cm36283_release(struct inode *inode, struct file *file)
 	return 0;
 }
 /************************************************************/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int set_psensor_threshold(struct i2c_client *client)
 {
 	struct cm36283_priv *obj = i2c_get_clientdata(client);
@@ -1611,7 +1611,7 @@ static long cm36283_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 				if(dat == 0)
 					obj->ps_cali = 0;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
                 pCustData->clearCali.action = CM36283_CUST_ACTION_CLR_CALI;
                 len = offsetof(SCP_SENSOR_HUB_SET_CUST_REQ, custData) + sizeof(pCustData->clearCali);
                 
@@ -1638,7 +1638,7 @@ static long cm36283_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 
 				obj->ps_cali = ps_cali;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
                 pCustData->setCali.action = CM36283_CUST_ACTION_SET_CALI;
                 pCustData->setCali.cali = ps_cali;
                 len = offsetof(SCP_SENSOR_HUB_SET_CUST_REQ, custData) + sizeof(pCustData->setCali);
@@ -1658,7 +1658,7 @@ static long cm36283_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned
 				atomic_set(&obj->ps_thd_val_high,  (threshold[0]+obj->ps_cali));
 				atomic_set(&obj->ps_thd_val_low,  (threshold[1]+obj->ps_cali));//need to confirm
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
                 pCustData->setPSThreshold.action = CM36283_CUST_ACTION_SET_PS_THRESHODL;
                 pCustData->setPSThreshold.threshold[0] = threshold[0];
                 pCustData->setPSThreshold.threshold[1] = threshold[1];
@@ -1852,14 +1852,14 @@ static int cm36283_init_client(struct i2c_client *client)
 		return res;
 	}
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	res = cm36283_disable_eint(client);
 	if(res!=0)
 	{
 		APS_ERR("disable eint fail: %d\n", res);
 		return res;
 	}
-#endif//#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifndef CUSTOM_KERNEL_SENSORHUB
 	
 	return CM36283_SUCCESS;
 	
@@ -2099,7 +2099,7 @@ static int cm36283_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	als_ctl.enable_nodata = als_enable_nodata;
 	als_ctl.set_delay  = als_set_delay;
 	als_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	als_ctl.is_support_batch = true;
 #else
     als_ctl.is_support_batch = false;
@@ -2126,7 +2126,7 @@ static int cm36283_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	ps_ctl.enable_nodata = ps_enable_nodata;
 	ps_ctl.set_delay  = ps_set_delay;
 	ps_ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	ps_ctl.is_support_batch = true;
 #else
     ps_ctl.is_support_batch = false;

@@ -47,6 +47,7 @@ if test -z "$KBUILD_BUILD_USER"; then
 else
 	LINUX_COMPILE_BY=$KBUILD_BUILD_USER
 fi
+
 if test -z "$KBUILD_BUILD_HOST"; then
 	LINUX_COMPILE_HOST=`hostname`
 else
@@ -75,7 +76,8 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 
   echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
   echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
-
+  #add by dingyin for kernel version commit id
+  echo \#define KERNEL_GIT_COMMIT_ID \"`echo $KERNEL_GIT_COMMIT_ID | $UTS_TRUNCATE`\"
   echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | tail -n 1`\"
 ) > .tmpcompile
 

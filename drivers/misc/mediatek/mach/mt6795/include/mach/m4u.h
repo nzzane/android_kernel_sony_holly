@@ -17,8 +17,6 @@ typedef int M4U_PORT_ID;
 //public flags
 #define M4U_FLAGS_SEQ_ACCESS (1<<0) //engine access this buffer in sequncial way.
 #define M4U_FLAGS_FIX_MVA   (1<<1)  //fix allocation, we will use mva user specified.
-#define M4U_FLAGS_SEC_SHAREABLE   (1<<2)  //the mva will share in SWd
-
 
 //m4u internal flags (DO NOT use them for other purpers)
 #define M4U_FLAGS_MVA_IN_FREE (1<<8) //this mva is in deallocating.
@@ -131,9 +129,6 @@ int m4u_unregister_reclaim_callback(int port);
 typedef m4u_callback_ret_t (m4u_fault_callback_t)(int port, unsigned int mva, void* data);
 int m4u_register_fault_callback(int port, m4u_fault_callback_t *fn, void* data);
 int m4u_unregister_fault_callback(int port);
-
-void m4u_larb0_enable(char *name);
-void m4u_larb0_disable(char *name);
 
 // m4u driver internal use ---------------------------------------------------
 //

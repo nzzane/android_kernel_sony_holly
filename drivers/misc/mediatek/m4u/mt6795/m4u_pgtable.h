@@ -156,10 +156,8 @@ static inline imu_pte_t *imu_largepage_start(imu_pte_t *pte)
 
 static inline unsigned int m4u_calc_next_mva(unsigned int addr, unsigned int end, unsigned int size)
 {
-/* addr + size may equal 0x100000000*/
-    unsigned long long __boundary = ((unsigned long long)addr+(unsigned long long)size)&(~((unsigned long long)size-1));
-    unsigned long long min = min(__boundary, end);
-    return (unsigned int)min;
+    unsigned int __boundary = (addr+size)&(~(size-1));
+    return min(__boundary, end);
 }
 
 #endif

@@ -4,7 +4,6 @@
 
 config PINCTRL
 	bool
-	default y
 
 if PINCTRL
 
@@ -19,7 +18,6 @@ config PINCONF
 
 config GENERIC_PINCONF
 	bool
-	default y
 	select PINCONF
 
 config DEBUG_PINCTRL
@@ -227,7 +225,6 @@ source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
-source "drivers/pinctrl/mediatek/Kconfig"
 
 config PINCTRL_XWAY
 	bool

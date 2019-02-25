@@ -348,18 +348,26 @@ void toi_free_extra_pagedir_memory(void)
 }
 
 #ifdef CONFIG_TOI_FIXUP
-#define TOI_BUFFER_RESERVED ((24*1024*1024) / PAGE_SIZE)
+#define TOI_BUFFER_RESERVED ((24*1024*1024) >> (PAGE_SHIFT))
 
 static int is_memory_low(unsigned long wanted)
 {
-	unsigned long free_pages;
+	struct zone *zone;
 
-	free_pages = real_nr_free_low_pages();
-	if (free_pages < (wanted + TOI_BUFFER_RESERVED)) {
-		hib_warn("memory status: free(%lu) < wanted(%lu)+reserved(%lu)\n",
-				 free_pages, wanted, TOI_BUFFER_RESERVED);
-		HIB_SHOW_MEMINFO();
-		return 1;
+	for_each_populated_zone(zone) {
+		unsigned long free_pages, min_pages, high_pages;
+		if (!strcmp(zone->name, "Normal")) {
+			free_pages = zone_page_state(zone, NR_FREE_PAGES);
+			min_pages = min_wmark_pages(zone);
+			high_pages = high_wmark_pages(zone);
+			if (free_pages < (wanted + TOI_BUFFER_RESERVED)) {
+				hib_warn("memory status: free(%lu) < wanted(%lu)+reserved(%d), min/high:(%lu/%lu)\n",
+						 free_pages, wanted, TOI_BUFFER_RESERVED, min_pages, high_pages);
+				HIB_SHOW_MEMINFO();
+				return 1;
+			} else
+				return 0;
+		}
 	}
 
 	return 0;
@@ -912,14 +920,14 @@ int try_allocate_extra_memory(void)
 	int wanted = pagedir1.size + extra_pd1_pages_allowance - get_lowmem_size(pagedir2);
 	if ((wanted > 0) && (wanted > extra_pages_allocated)) {
 		int got = toi_allocate_extra_pagedir_memory(wanted);
-		hib_warn("%s: Want %d extra pages for pageset1, got %d, free:%lu\n",
-				 wanted > got ? "FAIL" : "PASS",  wanted, got, real_nr_free_low_pages());
+		hib_warn("%s: Want %d extra pages for pageset1, got %d\n",
+				 wanted > got ? "FAIL" : "PASS",  wanted, got);
 		if (unlikely(wanted > got))
 			return 1;
 	} else
-		hib_warn("PASS: Want %lu extra pages for pageset1, got %lu, free:%lu\n",
+		hib_warn("PASS: Want %lu extra pages for pageset1, got %lu\n",
 				 pagedir1.size + extra_pd1_pages_allowance,
-				 extra_pages_allocated + get_lowmem_size(pagedir2), real_nr_free_low_pages());
+				 extra_pages_allocated + get_lowmem_size(pagedir2));
 #else /* buggy codes, (1) why wanted < got and return 1 ? ; (2) wanted might be negative value. */
 	unsigned long wanted = pagedir1.size + extra_pd1_pages_allowance -
 	    get_lowmem_size(pagedir2);

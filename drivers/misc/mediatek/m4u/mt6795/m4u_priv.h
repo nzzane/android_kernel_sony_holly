@@ -2,6 +2,7 @@
 #define __M4U_PRIV_H__
 #include <linux/ioctl.h>
 #include <linux/fs.h>
+#include <linux/xlog.h>
 #include <linux/aee.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
@@ -12,8 +13,8 @@
 #include "m4u_reg.h"
 #include "m4u_pgtable.h"
 
-#define M4UMSG(string, args...)	pr_err("[M4U] "string,##args)
-#define M4UINFO(string, args...) pr_debug("[M4U] "string,##args)
+#define M4UMSG(string, args...)	xlog_printk(ANDROID_LOG_ERROR, "M4U", string,##args)
+#define M4UINFO(string, args...) xlog_printk(ANDROID_LOG_INFO, "M4U", string,##args)
 
 
 #include "m4u_hw.h"
@@ -25,7 +26,6 @@
 //#define M4U_FPGAPORTING
 #define M4U_PROFILE
 #define M4U_4GBDRAM
-#define M4U_DVT 0
 
 #ifndef M4U_PROFILE
 #define MMProfileLogEx(...)
@@ -127,22 +127,6 @@ void m4u_mvaGraph_dump_raw(void);
 void m4u_mvaGraph_dump(void);
 void* mva_get_priv_ext(unsigned int mva);
 int mva_for_each_priv(mva_buf_fn_t *fn, void* data);
-unsigned int get_first_valid_mva();
-int m4u_confirm_all_invalidated(int m4u_index);
-int m4u_confirm_range_invalidated(int m4u_index, unsigned int MVAStart, unsigned int MVAEnd);
-void m4u_enable_prefetch(int m4u_index, int fgenable);
-int m4u_enable_error_hang(int m4u_index, int fgenable);
-int m4u_enable_MTLB_allshare(int m4u_index, int fgenable);
-int m4u_manual_insert_entry(int m4u_id, unsigned int EntryMVA, int layer, int pt_type, int secure, int Lock, unsigned int pa);
-int m4u_dump_valid_main_tlb(int m4u_id, int m4u_slave_id);
-int m4u_get_pt_type(m4u_domain_t *domain, unsigned int mva);
-
-int mau_start_monitor(int m4u_id, int m4u_slave_id, int mau_set,
-                      int wr, int vir, int io, int bit32,
-                      unsigned int start, unsigned int end, unsigned int port_mask, unsigned int larb_mask);
-
-
-
 void* mva_get_priv(unsigned int mva);
 unsigned int m4u_do_mva_alloc(unsigned long va, unsigned int size, void *priv);
 unsigned int m4u_do_mva_alloc_fix(unsigned int mva, unsigned int size, void *priv);
@@ -163,7 +147,6 @@ unsigned long m4u_get_pte(m4u_domain_t *domain, unsigned int mva);
 //=================================
 //==== define in m4u_hw.c     =====
 void m4u_invalid_tlb_by_range(m4u_domain_t *m4u_domain,unsigned int mva_start,unsigned int mva_end);
-void m4u_invalid_tlb_all(int m4u_id);
 m4u_domain_t * m4u_get_domain_by_port(M4U_PORT_ID port);
 m4u_domain_t * m4u_get_domain_by_id(int id);
 int m4u_get_domain_nr(void);
@@ -195,7 +178,7 @@ int m4u_map_sgtable(m4u_domain_t *m4u_domain, unsigned int mva,
 int m4u_unmap(m4u_domain_t *domain, unsigned int mva, unsigned int size);
 
 
-void m4u_get_pgd(m4u_client_t* client, M4U_PORT_ID port, void** pgd_va, void** pgd_pa, unsigned int* size);
+void m4u_get_pgd(m4u_client_t* client, M4U_PORT_ID port, void** pgd_va, dma_addr_t* pgd_pa, unsigned int* size);
 unsigned long m4u_mva_to_pa(m4u_client_t* client, M4U_PORT_ID port, unsigned int mva);
 int m4u_query_mva_info(unsigned int mva, unsigned int size, unsigned int *real_mva, unsigned int *real_size);
 
@@ -203,6 +186,9 @@ int m4u_query_mva_info(unsigned int mva, unsigned int size, unsigned int *real_m
 //=================================
 //==== define in m4u_debug.c =====
 int m4u_debug_init(struct m4u_device *m4u_dev);
+
+
+
 
 static inline dma_addr_t get_sg_phys(struct scatterlist *sg)
 {
@@ -226,9 +212,9 @@ do{\
     if(level > gM4U_log_level)\
     {\
         if(level > gM4U_log_to_uart)\
-            pr_warn("[M4U] "string, ##args);\
+            xlog_printk(ANDROID_LOG_WARN, "M4U", string, ##args);\
         else\
-            pr_debug("[M4U] "string, ##args);\
+            xlog_printk(ANDROID_LOG_DEBUG, "M4U", string, ##args);\
     }\
 }while(0)
 
@@ -238,7 +224,7 @@ do{\
 
 
 #define M4UERR(string, args...) do {\
-	pr_err("[M4U] error:"string,##args);  \
+	xlog_printk(ANDROID_LOG_ERROR, "M4U", "error: "string,##args);  \
 	aee_kernel_exception("M4U", "[M4U] error:"string,##args);  \
 }while(0)
 
@@ -246,16 +232,17 @@ do{\
     char m4u_name[100];\
     snprintf(m4u_name,100, "[M4U]"string, ##args); \
     aee_kernel_warning_api(__FILE__, __LINE__, DB_OPT_MMPROFILE_BUFFER, m4u_name, "[M4U] error"string, ##args);  \
-	pr_err("[M4U] error:"string,##args);  \
+	xlog_printk(ANDROID_LOG_ERROR, "M4U", "error: "string,##args);  \
 }while(0)
     /*aee_kernel_warning(m4u_name, "[M4U] error:"string,##args); */
+
 
 #define M4U_PRINT_LOG_OR_SEQ(seq_file, fmt, args...) \
     do{\
         if(seq_file)\
             seq_printf(seq_file, fmt, ##args);\
         else\
-            pr_debug(fmt, ##args);\
+            xlog_printk(ANDROID_LOG_ERROR, "M4U", fmt,##args);  \            
     }while(0)
 
 
@@ -341,3 +328,4 @@ int m4u_sec_init(void);
 #endif
 
 #endif
+

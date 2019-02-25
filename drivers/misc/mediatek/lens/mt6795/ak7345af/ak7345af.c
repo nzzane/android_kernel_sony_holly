@@ -23,7 +23,7 @@ static struct i2c_board_info __initdata kd_lens_dev={ I2C_BOARD_INFO("AK7345AF",
 
 #define AK7345AF_DEBUG
 #ifdef AK7345AF_DEBUG
-#define AK7345AFDB pr_debug
+#define AK7345AFDB printk
 #else
 #define AK7345AFDB(x,...)
 #endif
@@ -275,19 +275,15 @@ static int AK7345AF_Release(struct inode * a_pstInode, struct file * a_pstFile)
 {
     AK7345AFDB("[AK7345AF] AK7345AF_Release - Start\n");
 
-    if (g_s4AK7345AF_Opened == 2)
-    {
-        g_sr = 5;
-        msleep(10);  	    	    
-    }
-
     if (g_s4AK7345AF_Opened)
     {
         AK7345AFDB("[AK7345AF] feee \n");
-	    	    
+        g_sr = 5;
+        msleep(10);  	    	    
         spin_lock(&g_AK7345AF_SpinLock);
         g_s4AK7345AF_Opened = 0;
         spin_unlock(&g_AK7345AF_SpinLock);
+
     }
 
     AK7345AFDB("[AK7345AF] AK7345AF_Release - End\n");

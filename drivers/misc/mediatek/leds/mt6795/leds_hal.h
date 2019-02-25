@@ -32,11 +32,5 @@ extern void mt_mt65xx_led_work(struct work_struct *work);
 extern void mt_mt65xx_led_set(struct led_classdev *led_cdev, enum led_brightness level);
 extern int mt_mt65xx_blink_set(struct led_classdev *led_cdev,
 			       unsigned long *delay_on, unsigned long *delay_off);
-/* PERI-AH-Add control state-00+[ */
-extern void fxn_mt65xx_set_brightness(unsigned int param1, unsigned int param2, unsigned int param3);
-extern void fxn_mt65xx_set_current(unsigned int param1, unsigned int param2, unsigned int param3);
-extern void fxn_mt65xx_set_led(unsigned int param1, unsigned int param2, unsigned int param3);
-extern void fxn_mt65xx_set_blink(unsigned int param1, unsigned int param2, unsigned int param3);
-/* PERI-AH-Add control state-00+] */
 
 struct cust_mt65xx_led *mt_get_cust_led_list(void);

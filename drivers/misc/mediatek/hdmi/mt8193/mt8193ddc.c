@@ -8,7 +8,7 @@
 *
 *
 ******************************************************************************/
-#ifdef HDMI_MT8193_SUPPORT
+#ifdef CONFIG_MTK_MT8193_HDMI_SUPPORT
 
 #include "mt8193_ctrl.h"
 #include "mt8193ddc.h"

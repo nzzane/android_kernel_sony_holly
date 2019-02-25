@@ -239,7 +239,7 @@ void Speaker_ClassD_close(void)
 void Speaker_ClassAB_Open(void)
 {
     printk("%s\n", __func__);
-/*    BoostOpen(); */  /* MM-NC-SpeakerEnable-02 */
+    BoostOpen();
     Enable_Speaker_Clk(true);
     Ana_Set_Reg(SPK_CON2,  0x0204, 0xffff);
     Ana_Set_Reg(SPK_CON9,  0x0a00, 0xffff);
@@ -261,7 +261,7 @@ void Speaker_ClassAB_Open(void)
 void Speaker_ClassAB_close(void)
 {
     printk("%s\n", __func__);
-/*    BoostClose(); */  /* MM-NC-SpeakerEnable-02 */
+    BoostClose();
     Ana_Set_Reg(SPK_CON0,  0x0000, 0xffff);
     Enable_Speaker_Clk(false);
 }

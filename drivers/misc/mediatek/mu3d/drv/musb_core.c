@@ -100,10 +100,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-#include <mach/mt_usb2jtag.h>
-#endif
-
 #ifdef CONFIG_USBIF_COMPLIANCE
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
@@ -901,10 +897,9 @@ void musb_start(struct musb *musb)
 
 		/* disable IP reset and power down, disable U2/U3 ip power down */
 		_ex_mu3d_hal_ssusb_en();
+
 		/* USB PLL Force settings */
-#ifdef CONFIG_PROJECT_PHY
 		usb20_pll_settings(false, false);
-#endif
 
 		/* reset U3D all dev module. */
 		mu3d_hal_rst_dev();
@@ -1963,73 +1958,6 @@ extern ssize_t musb_cmode_store(struct device* dev, struct device_attribute *att
 
 DEVICE_ATTR(cmode, 0664, musb_cmode_show, musb_cmode_store);
 
-
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling -start
-//
-//---------------------------------------------------
-#if 1
-
-extern ssize_t musb_id_forceon_show(struct device* dev, struct device_attribute *attr, char *buf);
-extern ssize_t musb_id_forceon_store(struct device* dev, struct device_attribute *attr, const char *buf, size_t count);
-
-DEVICE_ATTR(idforceon, 0777, musb_id_forceon_show, musb_id_forceon_store);
-
-extern ssize_t musb_id_state_show(struct device* dev, struct device_attribute *attr, char *buf);
-extern ssize_t musb_id_state_store(struct device* dev, struct device_attribute *attr, const char *buf, size_t count);
-
-DEVICE_ATTR(idstate, 0777, musb_id_state_show, musb_id_state_store);
-
-extern ssize_t musb_id_timeout_show(struct device* dev, struct device_attribute *attr, char *buf);
-extern ssize_t musb_id_timeout_store(struct device* dev, struct device_attribute *attr, const char *buf, size_t count);
-
-DEVICE_ATTR(idtimeout, 0777, musb_id_timeout_show, musb_id_timeout_store);
-
-
-extern ssize_t start_id_polling_show(struct device* dev, struct device_attribute *attr, char *buf);
-extern ssize_t start_id_polling_store(struct device* dev, struct device_attribute *attr, const char *buf, size_t count);
-
-DEVICE_ATTR(idpolling, 0777, start_id_polling_show, start_id_polling_store);
-
-
-
-
-#else
-
-
-module_param(force_id_polling_on, bool, S_IRUSR | S_IWUSR);
-
-module_param(id_polling_state, bool, S_IRUSR);
-
-module_param(id_polling_timeout, uint, S_IRUSR | S_IWUSR);
-
-
-static int set_start_id_polling(const char *val, const struct kernel_param *kp)
-{
-	int ret;
-	//need check
-
-	return ret;
-}
-
-static struct kernel_param_ops start_id_polling_ops = {
-	.set = set_start_id_polling,
-	.get = param_get_bool,
-};
-module_param_cb(start_id_polling, &start_id_polling_ops, &start_id_polling,
-							S_IRUSR | S_IWUSR);								// 4
-
-#endif
-
-
-//---------------------------------------------------
-//
-// CONN-USB-JY-usb id polling -end
-//
-//---------------------------------------------------
-
-
 #ifdef CONFIG_MTK_UART_USB_SWITCH
 extern ssize_t musb_portmode_show(struct device* dev, struct device_attribute *attr, char *buf);
 extern ssize_t musb_portmode_store(struct device* dev, struct device_attribute *attr, const char *buf, size_t count);
@@ -2049,10 +1977,6 @@ static struct attribute *musb_attributes[] = {
 	&dev_attr_vbus.attr,
 	&dev_attr_srp.attr,
 	&dev_attr_cmode.attr,
-	&dev_attr_idforceon.attr,
-	&dev_attr_idstate.attr,
-	&dev_attr_idtimeout.attr,
-	&dev_attr_idpolling.attr,
 	#ifdef CONFIG_MTK_UART_USB_SWITCH
     &dev_attr_portmode.attr,
     &dev_attr_tx.attr,
@@ -2133,7 +2057,7 @@ static void musb_irq_work(struct work_struct *data)
 	struct musb *musb = container_of(data, struct musb, irq_work);
 	static int old_state;
 
-	os_printk(K_DEBUG, "%s [%d]=[%d]\n", __func__, musb->xceiv->state, old_state);
+	os_printk(K_INFO, "%s [%d]=[%d]\n", __func__, musb->xceiv->state, old_state);
 
 	if (musb->xceiv->state != old_state) {
 		old_state = musb->xceiv->state;
@@ -2210,8 +2134,6 @@ static void musb_free(struct musb *musb)
 	 * cleanup after everything's been de-activated.
 	 */
 
-	struct somc_usb_id *usb_id = &musb->usb_id;
-
 #ifdef CONFIG_SYSFS
 	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
 #endif
@@ -2246,20 +2168,6 @@ static void musb_free(struct musb *musb)
 	}
 */
 	wake_lock_destroy(&musb->usb_wakelock);
-
-// CONN-USB-JY-usb id polling-00+{
-
-	cancel_delayed_work_sync(&usb_id->stop_polling_delay);
-	cancel_delayed_work_sync(&usb_id->start_polling_delay);
-//	destroy_workqueue(usb_id->start_polling_delay.wq);
-//	destroy_workqueue(usb_id->polling_wq); //need check
-
-	wakeup_source_trash(&usb_id->wakeup_source_id_polling);
-
-// CONN-USB-JY-usb id polling-00+}
-
-
-
 
 	//added for ssusb:
 #ifdef CONFIG_USBIF_COMPLIANCE
@@ -2454,33 +2362,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status)
 		goto fail5;
 #endif
-
-
-// CONN-USB-JY-usb id polling-00+{
-//os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_timeout);
-	struct somc_usb_id *usb_id = &musb->usb_id;
-	spin_lock_init(&usb_id->change_irq_lock);
-	//usb_id->polling_wq = create_singlethread_workqueue("id-polling_wq"); //need check
-	INIT_DELAYED_WORK(&usb_id->start_polling_delay,
-				somc_chg_usbid_start_polling_delay_work);
-	INIT_DELAYED_WORK(&usb_id->stop_polling_delay,
-				somc_chg_usbid_stop_polling_delay_work);
-	atomic_set(&usb_id->change_irq_enabled, 1);
-
-	//wake_lock_init(&usb_id->wakelock_id_polling, WAKE_LOCK_SUSPEND,
-	//					"wakelock_id_polling");
-	wakeup_source_init(&usb_id->wakeup_source_id_polling,
-					"wakeup_source_id_polling");
-
-	usb_id->user_request_polling = false;
-	usb_id->avoid_first_usbid_change = false;
-
-	//id_polling_state = false;
-	//start_id_polling = false;
-	//id_polling_timeout = ID_POLLING_TIMEOUT_DEFAULT;
-	//force_id_polling_on = false;
-	//os_printk(K_INFO, "[MU3D]%s :%d \n", __func__,id_polling_timeout);
-// CONN-USB-JY-usb id polling-00+}
 
 	pm_runtime_put(musb->controller);
 
@@ -3099,12 +2980,6 @@ static int __init musb_init(void)
 	struct proc_dir_entry *prEntry;
 	int ret = 0;
 
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-	if (usb2jtag_mode()) {
-		pr_err("[USB2JTAG] in usb2jtag mode, not to initialize usb driver\n");
-		return 0;
-	}
-#endif
 	if (usb_disabled())
 		return 0;
 
@@ -3128,7 +3003,6 @@ static int __init musb_init(void)
 
 	return ret ;
 }
-
 module_init(musb_init);
 
 static void __exit musb_cleanup(void)
@@ -3144,12 +3018,6 @@ module_exit(musb_cleanup);
 
 static int __init musb_init(void)
 {
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-	if (usb2jtag_mode()) {
-		pr_err("[USB2JTAG] in usb2jtag mode, not to initialize usb driver\n");
-		return 0;
-	}
-#endif
 	if (usb_disabled())
 		return 0;
 

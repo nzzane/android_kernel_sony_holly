@@ -71,6 +71,7 @@ static fm_s32 mt6620_pwron(fm_s32 data)
 	}
 }
 
+
 static fm_s32 mt6620_pwroff(fm_s32 data)
 {
 	if (MTK_WCN_BOOL_FALSE == mtk_wcn_wmt_func_off(WMTDRV_TYPE_FM)) {
@@ -114,7 +115,9 @@ static fm_s32 mt6620_read(fm_u8 addr, fm_u16 *val)
 	if (FM_LOCK(cmd_buf_lock))
 		return (-FM_ELOCK);
 	pkt_size = mt6620_get_reg(cmd_buf, TX_BUF_SIZE, addr);
-	ret = fm_cmd_tx(cmd_buf, pkt_size, FLAG_FSPI_RD, SW_RETRY_CNT, FSPI_RD_TIMEOUT, mt6620_get_read_result);
+	ret =
+	    fm_cmd_tx(cmd_buf, pkt_size, FLAG_FSPI_RD, SW_RETRY_CNT, FSPI_RD_TIMEOUT,
+		      mt6620_get_read_result);
 
 	if (!ret && res) {
 		*val = res->fspi_rd;
@@ -371,6 +374,7 @@ static fm_s32 mt6620_PowerUpTx(void)
 		return ret;
 	}
 
+
 	mt6620_read(0x62, &dataRead);
 	WCN_DBG(FM_NTC | CHIP, "Tx on chipid=%x\n", dataRead);
 
@@ -488,7 +492,8 @@ static fm_s32 mt6620_print_curCQI(fm_u16 cur_freq)
 	if ((ret = mt6620_read(FM_MR_IND, &mr)))
 		return ret;
 
-	WCN_DBG(FM_NTC | CHIP, "FREQ=%d, RSSI=0x%04x, PAMD=0x%04x, MR=0x%04x\n", (fm_s32) cur_freq, rssi, pamd, mr);
+	WCN_DBG(FM_NTC | CHIP, "FREQ=%d, RSSI=0x%04x, PAMD=0x%04x, MR=0x%04x\n", (fm_s32) cur_freq,
+		rssi, pamd, mr);
 	return ret;
 }
 
@@ -515,7 +520,8 @@ static fm_bool mt6620_SetFreq(fm_u16 freq)
 			return ret;
 		WCN_DBG(FM_NTC | CHIP, "%s, mcu [freq_avoid=%d]\n", __func__, freq_avoid);
 	} else {
-		WCN_DBG(FM_NTC | CHIP, "%s, no need do mcu freq avoid[hw_ver=%d]\n", __func__, hw_ver);
+		WCN_DBG(FM_NTC | CHIP, "%s, no need do mcu freq avoid[hw_ver=%d]\n", __func__,
+			hw_ver);
 	}
 
 	/* start tune */
@@ -561,6 +567,7 @@ static fm_bool mt6620_SetFreq(fm_u16 freq)
 
 	return fm_true;
 }
+
 
 static fm_s32 mt6620_TxScan_SetFreq(fm_u16 freq)
 {
@@ -623,9 +630,10 @@ static fm_s32 mt6620_TxScan_GetCQI(fm_s16 *pRSSI, fm_s16 *pPAMD, fm_s16 *pMR)
 	*pPAMD = aPAMD >> 3;
 	*pMR = aMR >> 3;
 
-	WCN_DBG(FM_NTC | CHIP, "%s():[RSSI=%d],[PAMD=%d],[MR=%d]\n", __func__, *pRSSI, *pPAMD, *pMR);
+	WCN_DBG(FM_NTC | CHIP, "%s():[RSSI=%d],[PAMD=%d],[MR=%d]\n",
+		__func__, *pRSSI, *pPAMD, *pMR);
 
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s():[ret=%d]\n", __func__, ret);
 	return ret;
 }
@@ -658,14 +666,15 @@ static fm_s32 mt6620_TxScan_IsEmptyChannel(fm_s16 RSSI, fm_s16 PAMD, fm_s16 MR, 
 		goto out;
 	}
 
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s():[ret=%d]\n", __func__, ret);
 	return ret;
 }
 
 static fm_s32 mt6620_TxScan(fm_u16 min_freq,
 			    fm_u16 max_freq,
-			    fm_u16 *pFreq, fm_u16 *pScanTBL, fm_u16 *ScanTBLsize, fm_u16 scandir, fm_u16 space)
+			    fm_u16 *pFreq,
+			    fm_u16 *pScanTBL, fm_u16 *ScanTBLsize, fm_u16 scandir, fm_u16 space)
 {
 	fm_s32 ret = 0;
 	fm_u16 freq = *pFreq;
@@ -729,7 +738,8 @@ static fm_s32 mt6620_TxScan(fm_u16 min_freq,
 			    && ((freq < FM_TX_SCAN_HOLE_LOW) || (freq > FM_TX_SCAN_HOLE_HIGH))) {
 				*(pScanTBL + cnt) = freq;	/* strore the valid empty channel */
 				cnt++;
-				WCN_DBG(FM_NTC | CHIP, "empty channel:[freq=%d] [cnt=%d]\n", freq, cnt);
+				WCN_DBG(FM_NTC | CHIP, "empty channel:[freq=%d] [cnt=%d]\n", freq,
+					cnt);
 			}
 		} else {
 			WCN_DBG(FM_ERR | CHIP, "%s():IsEmptyChannel failed\n", __func__);
@@ -759,7 +769,7 @@ static fm_s32 mt6620_TxScan(fm_u16 min_freq,
 	*pFreq = *(pScanTBL + cnt);
 	WCN_DBG(FM_NTC | CHIP, "completed, [cnt=%d],[freq=%d],[counter=%d]\n", cnt, freq, counter);
 
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s():[ret=%d]\n", __func__, ret);
 	return ret;
 }
@@ -771,7 +781,8 @@ out:
 * @space - 1:50KHz, 2:100KHz, 4:200KHz
 * return fm_true:seek success; fm_false:seek failed
 */
-static fm_bool mt6620_Seek(fm_u16 min_freq, fm_u16 max_freq, fm_u16 *pFreq, fm_u16 seekdir, fm_u16 space)
+static fm_bool mt6620_Seek(fm_u16 min_freq, fm_u16 max_freq, fm_u16 *pFreq, fm_u16 seekdir,
+			   fm_u16 space)
 {
 	fm_s32 ret = 0;
 	fm_u16 pkt_size, temp;
@@ -916,7 +927,9 @@ static fm_s32 MT6620_Fast_SetFreq(fm_u16 freq)
 	if (FM_LOCK(cmd_buf_lock))
 		return (-FM_ELOCK);
 	pkt_size = mt6620_fast_tune(cmd_buf, TX_BUF_SIZE, freq);
-	ret = fm_cmd_tx(cmd_buf, pkt_size, FLAG_TUNE, SW_RETRY_CNT, SEEK_TIMEOUT, mt6620_get_read_result);
+	ret =
+	    fm_cmd_tx(cmd_buf, pkt_size, FLAG_TUNE, SW_RETRY_CNT, SEEK_TIMEOUT,
+		      mt6620_get_read_result);
 	FM_UNLOCK(cmd_buf_lock);
 
 	if (ret) {
@@ -1002,6 +1015,7 @@ static fm_s32 mt6620_dump_reg(void)
 	return 0;
 }
 
+
 static fm_bool mt6620_GetMonoStereo(fm_u16 *pMonoStereo)
 {
 	fm_u16 tmp_reg;
@@ -1047,7 +1061,7 @@ static fm_s32 MT6620_SetMonoStereo(fm_s32 MonoStereo)
 
 	WCN_DBG(FM_DBG | CHIP, "set to %s\n", MonoStereo ? "auto" : "force mono");
 
-out:
+ out:
 	return ret;
 }
 
@@ -1172,8 +1186,9 @@ static fm_s32 mt6620_I2s_Setting(fm_s32 onoff, fm_s32 mode, fm_s32 sample)
 		goto out;
 
 	WCN_DBG(FM_NTC | CHIP, "[onoff=%s][mode=%s][sample=%d](0)33KHz,(1)44.1KHz,(2)48KHz\n",
-		(onoff == FM_I2S_ON) ? "On" : "Off", (mode == FM_I2S_MASTER) ? "Master" : "Slave", sample);
-out:
+		(onoff == FM_I2S_ON) ? "On" : "Off",
+		(mode == FM_I2S_MASTER) ? "Master" : "Slave", sample);
+ out:
 	return ret;
 }
 
@@ -1239,7 +1254,7 @@ static fm_s32 MT6620_FMOverBT(fm_bool enable)
 		ret = -FM_EPARA;
 		goto out;
 	}
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s():[ret=%d]\n", __func__, ret);
 	return ret;
 }
@@ -1280,7 +1295,9 @@ static fm_s32 mt6620_soft_mute_tune(fm_u16 freq, fm_s32 *rssi, fm_bool *valid)
 	if (FM_LOCK(cmd_buf_lock))
 		return (-FM_ELOCK);
 	pkt_size = mt6620_full_cqi_req(cmd_buf, TX_BUF_SIZE, freq, 1, 1);
-	ret = fm_cmd_tx(cmd_buf, pkt_size, FLAG_SM_TUNE, SW_RETRY_CNT, SM_TUNE_TIMEOUT, mt6620_get_read_result);
+	ret =
+	    fm_cmd_tx(cmd_buf, pkt_size, FLAG_SM_TUNE, SW_RETRY_CNT, SM_TUNE_TIMEOUT,
+		      mt6620_get_read_result);
 	FM_UNLOCK(cmd_buf_lock);
 
 	if (!ret && res) {
@@ -1288,11 +1305,19 @@ static fm_s32 mt6620_soft_mute_tune(fm_u16 freq, fm_s32 *rssi, fm_bool *valid)
 		p_cqi = (struct mt6620_fm_softmute_tune_cqi_t *)&res->cqi[2];
 		/* just for debug */
 		WCN_DBG(FM_NTC | CHIP, "freq %d, 0x%04x, 0x%04x, 0x%04x, 0x%04x, 0x%04x, 0x%04x\n",
-			p_cqi->ch, p_cqi->rssi, p_cqi->pamd, p_cqi->mr, p_cqi->atdc, p_cqi->prx, p_cqi->smg);
-		RSSI = ((p_cqi->rssi & 0x03FF) >= 512) ? ((p_cqi->rssi & 0x03FF) - 1024) : (p_cqi->rssi & 0x03FF);
-		PAMD = ((p_cqi->pamd & 0xFF) >= 128) ? ((p_cqi->pamd & 0x0FF) - 256) : (p_cqi->pamd & 0x0FF);
-		MR = ((p_cqi->mr & 0x01FF) >= 256) ? ((p_cqi->mr & 0x01FF) - 512) : (p_cqi->mr & 0x01FF);
-		ATDC = ((p_cqi->atdc & 0x0FFF) >= 2048) ? ((p_cqi->atdc & 0x0FFF) - 4096) : (p_cqi->atdc & 0x0FFF);
+			p_cqi->ch,
+			p_cqi->rssi, p_cqi->pamd, p_cqi->mr, p_cqi->atdc, p_cqi->prx, p_cqi->smg);
+		RSSI =
+		    ((p_cqi->rssi & 0x03FF) >=
+		     512) ? ((p_cqi->rssi & 0x03FF) - 1024) : (p_cqi->rssi & 0x03FF);
+		PAMD =
+		    ((p_cqi->pamd & 0xFF) >=
+		     128) ? ((p_cqi->pamd & 0x0FF) - 256) : (p_cqi->pamd & 0x0FF);
+		MR = ((p_cqi->mr & 0x01FF) >=
+		      256) ? ((p_cqi->mr & 0x01FF) - 512) : (p_cqi->mr & 0x01FF);
+		ATDC =
+		    ((p_cqi->atdc & 0x0FFF) >=
+		     2048) ? ((p_cqi->atdc & 0x0FFF) - 4096) : (p_cqi->atdc & 0x0FFF);
 		if (ATDC < 0) {
 			ATDC = (~(ATDC)) - 1;	/* Get abs value of ATDC */
 		}
@@ -1509,7 +1534,7 @@ static fm_bool mt6620_em_test(fm_u16 group_idx, fm_u16 item_idx, fm_u32 item_val
 		break;
 	}
 
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s():[ret=%d]\n", __func__, ret);
 	return ret;
 	return fm_true;
@@ -1573,7 +1598,8 @@ static fm_s32 mt6620_is_dese_chan(fm_u16 freq)
 	WCN_DBG(FM_NTC | CHIP, "%s, freq=%d\n", __func__, freq);
 
 	bDesenseCh =
-	    ((0x0001 << (((freq - 7600) % 80) / 5)) & DesenseChMap[((freq - 7600) / 80)]) >> (((freq - 7600) % 80) / 5);
+	    ((0x0001 << (((freq - 7600) % 80) / 5)) & DesenseChMap[((freq - 7600) / 80)]) >>
+	    (((freq - 7600) % 80) / 5);
 	WCN_DBG(FM_NTC | CHIP, "freq[%d] desense=[%d]\n", freq, bDesenseCh);
 
 	return bDesenseCh;
@@ -1703,6 +1729,7 @@ fm_s32 MT6620fm_low_ops_unregister(struct fm_lowlevel_ops *ops)
 	return ret;
 }
 
+
 /***********************************************************************
 *  Hi-Lo Side Injection
 *
@@ -1766,7 +1793,7 @@ fm_s32 MT6620_HL_Side_Adj(fm_u16 freq, fm_s32 *hl)
 		if ((ret = mt6620_write(0xCB, tmp & 0xFFFE)))
 			goto out;
 	}
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s, [isHiSide=%d][ret=%d]\n", __func__, (fm_s32) isHiSide, ret);
 	return ret;
 }
@@ -1778,6 +1805,7 @@ out:
 fm_s32 MT6620_ADPLL_Power_OnOff(fm_s32 onoff, fm_s32 ADPLL_clk)
 {
 	fm_s32 ret = 0;
+
 
 	switch (onoff) {
 	case FM_ADPLL_ON:
@@ -1848,7 +1876,7 @@ fm_s32 MT6620_ADPLL_Power_OnOff(fm_s32 onoff, fm_s32 ADPLL_clk)
 	default:
 		break;
 	}
-out:
+ out:
 	return ret;
 }
 
@@ -1865,7 +1893,8 @@ fm_s32 MT6620_ADPLL_Freq_Avoid(fm_u16 freq, fm_s32 *freqavoid)
 	static fm_u16 Avoid_Channels[] = {
 		7670, 7680, 7690, 7700, 8060, 8070, 8080, 8440, 8450, 8460, 8720, 8830, 8840, 9200,
 		9210, 9220, 9230, 9360, 9490, 9600, 9610, 9980, 9990, 10000, 10130, 10360, 10370,
-		10380, 10740, 10750, 10760, 10770
+		    10380, 10740,
+		10750, 10760, 10770
 	};
 
 	if (0 == fm_get_channel_space(freq)) {
@@ -1934,7 +1963,7 @@ fm_s32 MT6620_ADPLL_Freq_Avoid(fm_u16 freq, fm_s32 *freqavoid)
 	/* Set rgfrf_cnt_resync_b = 1 */
 	if ((ret = mt6620_set_bits(0x2A, BITn(1), MASK(1))))	/* set 2AH D1=1 */
 		goto out;
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s, [ADPLL_clk=%d][ret=%d]\n", __func__, (fm_s32) ADPLL_clk, ret);
 	return ret;
 }
@@ -2043,7 +2072,7 @@ fm_s32 MT6620_TX_PWR_CTRL(fm_u16 freq, fm_s32 *ctr)
 	if ((ret = mt6620_write(0x9C, reg)))
 		goto out;
 
-out:
+ out:
 	WCN_DBG(FM_NTC | CHIP, "-%s, [temp=%d][ret=%d]\n", __func__, (fm_s32) tmp, ret);
 	return ret;
 }
@@ -2114,8 +2143,9 @@ fm_s32 MT6620_RTC_Drift_CTRL(fm_u16 freq, fm_s32 *ctr)
 	   if((ret = mt6620_set_bits(0x48, BITn(15), MASK(15))))//set 48 D15=1
 	   goto out;
 	 */
-out:
-	WCN_DBG(FM_NTC | CHIP, "-%s, [compensation=%d][ret=%d]\n", __func__, (fm_s32) (compensation_int16), ret);
+ out:
+	WCN_DBG(FM_NTC | CHIP, "-%s, [compensation=%d][ret=%d]\n", __func__,
+		(fm_s32) (compensation_int16), ret);
 	return ret;
 }
 
@@ -2173,8 +2203,9 @@ fm_s32 MT6620_TX_DESENSE(fm_u16 freq, fm_s32 *ctr)
 	if ((ret = mt6620_set_bits(0x41, 0, MASK(0))))	/* set 41 D0=0 */
 		goto out;
 
-out:
-	WCN_DBG(FM_DBG | CHIP, "-%s, [freq=%d][delay=%dms][ret=%d]\n", __func__, (fm_s32) freq, *ctr, ret);
+ out:
+	WCN_DBG(FM_DBG | CHIP, "-%s, [freq=%d][delay=%dms][ret=%d]\n", __func__, (fm_s32) freq,
+		*ctr, ret);
 	return ret;
 }
 

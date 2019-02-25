@@ -222,9 +222,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPCEConfig.uiProtMask = RGX_MMUCTRL_PCE_PROTMASK; //Mask to get the status bits of the PC */
 	sRGXMMUPCEConfig.uiProtShift = 0; /* Shift this many bits to have status bits starting with bit 0 */
 
-	sRGXMMUPCEConfig.uiValidEnMask = RGX_MMUCTRL_PC_DATA_VALID_EN; /* Mask to get entry valid bit of the PC */
-	sRGXMMUPCEConfig.uiValidEnShift = RGX_MMUCTRL_PC_DATA_VALID_SHIFT; /* Shift this many bits to have entry valid bit starting with bit 0 */
-
 	/*
 	 *  Setup sRGXMMUTopLevelDevVAddrConfig
 	 */
@@ -255,9 +252,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_4KBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_4KBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_4KBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_4KBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup sRGXMMUPTEConfig_4KBDP
 	 */
@@ -269,9 +263,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_4KBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_4KBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_4KBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_4KBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_4KBDP
@@ -319,9 +310,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_16KBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_16KBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_16KBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_16KBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup sRGXMMUPTEConfig_16KBDP
 	 */
@@ -333,9 +321,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_16KBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_16KBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_16KBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_16KBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_16KBDP
@@ -383,9 +368,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_64KBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_64KBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_64KBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_64KBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup sRGXMMUPTEConfig_64KBDP
 	 */
@@ -397,9 +379,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_64KBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_64KBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_64KBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_64KBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_64KBDP
@@ -447,9 +426,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_256KBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_256KBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_256KBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_256KBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup MMU_PxE_CONFIG sRGXMMUPTEConfig_256KBDP
 	 */
@@ -461,9 +437,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_256KBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_256KBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_256KBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_256KBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_256KBDP
@@ -504,9 +477,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_1MBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_1MBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_1MBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_1MBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup sRGXMMUPTEConfig_1MBDP
 	 */
@@ -518,9 +488,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_1MBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_1MBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_1MBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_1MBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_1MBDP
@@ -561,9 +528,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 	sRGXMMUPDEConfig_2MBDP.uiProtMask = RGX_MMUCTRL_PDE_PROTMASK;
 	sRGXMMUPDEConfig_2MBDP.uiProtShift = 0;
 
-	sRGXMMUPDEConfig_2MBDP.uiValidEnMask = RGX_MMUCTRL_PD_DATA_VALID_EN;
-	sRGXMMUPDEConfig_2MBDP.uiValidEnShift = RGX_MMUCTRL_PD_DATA_VALID_SHIFT;
-
 	/*
 	 * Setup sRGXMMUPTEConfig_2MBDP
 	 */
@@ -575,9 +539,6 @@ PVRSRV_ERROR RGXMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode)
 
 	sRGXMMUPTEConfig_2MBDP.uiProtMask = RGX_MMUCTRL_PTE_PROTMASK;
 	sRGXMMUPTEConfig_2MBDP.uiProtShift = 0;
-
-	sRGXMMUPTEConfig_2MBDP.uiValidEnMask = RGX_MMUCTRL_PT_DATA_VALID_EN;
-	sRGXMMUPTEConfig_2MBDP.uiValidEnShift = RGX_MMUCTRL_PT_DATA_VALID_SHIFT;
 
 	/*
 	 * Setup sRGXMMUDevVAddrConfig_2MBDP
@@ -838,9 +799,7 @@ static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT8 ui8Log2Pag
 
 /*************************************************************************/ /*!
 @Function       RGXGetPageSizeConfig
-@Description    Set up configuration for variable sized data pages.
-                RGXPutPageSizeConfigCB has to be called to ensure correct
-                refcounting.
+@Description    Set up configuration for variable sized data pages
 @Return         PVRSRV_ERROR
 */ /**************************************************************************/
 static PVRSRV_ERROR RGXGetPageSizeConfigCB(IMG_UINT32 uiLog2DataPageSize,
@@ -883,7 +842,6 @@ static PVRSRV_ERROR RGXGetPageSizeConfigCB(IMG_UINT32 uiLog2DataPageSize,
     *ppsMMUPTEConfig = psPageSizeConfig->psPTEConfig;
     *ppsMMUDevVAddrConfig = psPageSizeConfig->psDevVAddrConfig;
 
-#if defined(SUPPORT_MMU_PAGESIZECONFIG_REFCOUNT)
     /* Increment ref-count - not that we're allocating anything here
        (I'm using static structs), but one day we might, so we want
        the Get/Put code to be balanced properly */
@@ -892,7 +850,6 @@ static PVRSRV_ERROR RGXGetPageSizeConfigCB(IMG_UINT32 uiLog2DataPageSize,
     /* This is purely for debug statistics */
     psPageSizeConfig->uiMaxRefCount = MAX(psPageSizeConfig->uiMaxRefCount,
                                           psPageSizeConfig->uiRefCount);
-#endif
 
     *phPriv = (IMG_HANDLE)(IMG_UINTPTR_T)uiLog2DataPageSize;
 	PVR_ASSERT (uiLog2DataPageSize == (IMG_UINT32)(IMG_UINTPTR_T)*phPriv);
@@ -905,12 +862,10 @@ static PVRSRV_ERROR RGXGetPageSizeConfigCB(IMG_UINT32 uiLog2DataPageSize,
 @Description    Tells this code that the mmu module is done with the
                 configurations set in RGXGetPageSizeConfig.  This can
                 be a no-op.
-                Called after RGXGetPageSizeConfigCB.
 @Return         PVRSRV_ERROR
 */ /**************************************************************************/
 static PVRSRV_ERROR RGXPutPageSizeConfigCB(IMG_HANDLE hPriv)
 {
-#if defined(SUPPORT_MMU_PAGESIZECONFIG_REFCOUNT)
     RGX_PAGESIZECONFIG *psPageSizeConfig;
     IMG_UINT32 uiLog2DataPageSize;
 
@@ -946,9 +901,7 @@ static PVRSRV_ERROR RGXPutPageSizeConfigCB(IMG_HANDLE hPriv)
     /* Ref-count here is not especially useful, but it's an extra
        check that the API is being used correctly */
     psPageSizeConfig->uiRefCount --;
-#else
-    PVR_UNREFERENCED_PARAMETER(hPriv);
-#endif
+
     return PVRSRV_OK;
 }
 

@@ -224,8 +224,6 @@ static int mtk_pcm_fm_i2s_open(struct snd_pcm_substream *substream)
         mtk_pcm_fm_i2s_close(substream);
         return ret;
     }
-    
-    SetFMEnableFlag(true);
     printk("mtk_pcm_fm_i2s_open return\n");
     return 0;
 }
@@ -263,8 +261,6 @@ static int mtk_pcm_fm_i2s_close(struct snd_pcm_substream *substream)
     AudDrv_I2S_Clk_Off();
     AudDrv_Clk_Off();
     mPrepareDone = false;
-    SetFMEnableFlag(false);
-    
     return 0;
 }
 
@@ -286,7 +282,7 @@ static int mtk_pcm_fm_i2s_prepare(struct snd_pcm_substream *substream)
         SetConnection(Soc_Aud_InterCon_Connection, Soc_Aud_InterConnectionInput_I11, Soc_Aud_InterConnectionOutput_O04);
 
         // Set HW_GAIN
-        SetHwDigitalGainMode(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, runtime->rate, 0x40);
+        SetHwDigitalGainMode(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, runtime->rate, 0x80);
         SetHwDigitalGainEnable(Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1, true);
         SetHwDigitalGain(mfm_i2s_Volume, Soc_Aud_Hw_Digital_Gain_HW_DIGITAL_GAIN1);
 
@@ -318,10 +314,7 @@ static int mtk_pcm_fm_i2s_prepare(struct snd_pcm_substream *substream)
             m2ndI2SInAttribute.mI2S_WLEN = Soc_Aud_I2S_WLEN_WLEN_16BITS;
             Set2ndI2SIn(&m2ndI2SInAttribute);
 
-	    if (runtime->rate == 48000)
-		    SetI2SASRCConfig(true, 48000);  /* Covert from 32000 Hz to 48000 Hz */
-	    else
-		    SetI2SASRCConfig(true, 44100);  /* Covert from 32000 Hz to 44100 Hz */
+            SetI2SASRCConfig(true, 44100);  // Covert from 32000 Hz to 44100 Hz
             SetI2SASRCEnable(true);
 
             Set2ndI2SInEnable(true);

@@ -33,9 +33,9 @@
 
 #include <accel.h>
 #include <linux/batch.h>
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #define POWER_NONE_MACRO MT65XX_POWER_NONE
 
@@ -80,9 +80,9 @@ static int kxtj2_1009_resume(struct i2c_client *client);
 static int kxtj2_1009_local_init(void);
 static int  kxtj2_1009_remove(void);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int kxtj2_1009_setup_irq(void);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 /*----------------------------------------------------------------------------*/
 typedef enum {
@@ -116,9 +116,9 @@ struct kxtj2_1009_i2c_data {
     struct i2c_client *client;
     struct acc_hw *hw;
     struct hwmsen_convert   cvt;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     struct work_struct	irq_work;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
     
     /*misc*/
     struct data_resolution *reso;
@@ -132,9 +132,9 @@ struct kxtj2_1009_i2c_data {
     s8                      offset[KXTJ2_1009_AXES_NUM+1];  /*+1: for 4-byte alignment*/
     s16                     data[KXTJ2_1009_AXES_NUM+1];
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	int 					SCP_init_done;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #if defined(CONFIG_KXTJ2_1009_LOWPASS)
     atomic_t                firlen;
@@ -266,16 +266,16 @@ static int KXTJ2_1009_ReadData(struct i2c_client *client, s16 data[KXTJ2_1009_AX
 {
 	struct kxtj2_1009_i2c_data *priv = i2c_get_clientdata(client);        
     int err = 0;
-#if 0//ifdef CONFIG_MTK_SCP_SENSORHUB
+#if 0//ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 	u8 addr = KXTJ2_1009_REG_DATAX0;
 	u8 buf[KXTJ2_1009_DATA_LEN] = {0};
 	int i;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
-#if 0//ifdef CONFIG_MTK_SCP_SENSORHUB
+#if 0//ifdef CUSTOM_KERNEL_SENSORHUB
     req.get_data_req.sensorType = ID_ACCELEROMETER;
     req.get_data_req.action = SENSOR_HUB_GET_DATA;
     len = sizeof(req.get_data_req);
@@ -317,7 +317,7 @@ static int KXTJ2_1009_ReadData(struct i2c_client *client, s16 data[KXTJ2_1009_AX
 	{
         //show data
 	}
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(NULL == client)
 	{
 		err = -EINVAL;
@@ -405,7 +405,7 @@ static int KXTJ2_1009_ReadData(struct i2c_client *client, s16 data[KXTJ2_1009_AX
 		}	
 #endif         
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 	return err;
 }
 /*----------------------------------------------------------------------------*/
@@ -424,7 +424,7 @@ static int KXTJ2_1009_ResetCalibration(struct i2c_client *client)
 {
 	struct kxtj2_1009_i2c_data *obj = i2c_get_clientdata(client);
 	int err = 0;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     KXTJ2_1009_CUST_DATA *pCustData;
     unsigned int len;
@@ -507,7 +507,7 @@ static int KXTJ2_1009_WriteCalibration(struct i2c_client *client, int dat[KXTJ2_
 	struct kxtj2_1009_i2c_data *obj = i2c_get_clientdata(client);
 	int err;
 	int cali[KXTJ2_1009_AXES_NUM], raw[KXTJ2_1009_AXES_NUM];
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA data;
     KXTJ2_1009_CUST_DATA *pCustData;
     unsigned int len;
@@ -529,7 +529,7 @@ static int KXTJ2_1009_WriteCalibration(struct i2c_client *client, int dat[KXTJ2_
 		obj->offset[KXTJ2_1009_AXIS_X], obj->offset[KXTJ2_1009_AXIS_Y], obj->offset[KXTJ2_1009_AXIS_Z],
 		obj->cali_sw[KXTJ2_1009_AXIS_X], obj->cali_sw[KXTJ2_1009_AXIS_Y], obj->cali_sw[KXTJ2_1009_AXIS_Z]);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     pCustData = (KXTJ2_1009_CUST_DATA *)data.set_cust_req.custData;
     data.set_cust_req.sensorType = ID_ACCELEROMETER;
     data.set_cust_req.action = SENSOR_HUB_SET_CUST;
@@ -623,7 +623,7 @@ static int KXTJ2_1009_CheckDeviceID(struct i2c_client *client)
 	return KXTJ2_1009_SUCCESS;
 }
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static int KXTJ2_1009_SCP_SetPowerMode(bool enable)
 {
 	int res = 0;
@@ -832,13 +832,13 @@ static int kxtj2_1009_init_client(struct i2c_client *client, int reset_cali)
 
 	gsensor_gain.x = gsensor_gain.y = gsensor_gain.z = obj->reso->sensitivity;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     res = kxtj2_1009_setup_irq();
     if(res != KXTJ2_1009_SUCCESS)
 	{
 		return res;
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	res = KXTJ2_1009_SetIntEnable(client, 0x00);        
 	if(res != KXTJ2_1009_SUCCESS)//0x2E->0x80
@@ -946,7 +946,7 @@ static int KXTJ2_1009_ReadSensorData(struct i2c_client *client, char *buf, int b
 	}
 	else
 	{
-#if 0//ifdef CONFIG_MTK_SCP_SENSORHUB
+#if 0//ifdef CUSTOM_KERNEL_SENSORHUB
         acc[KXTJ2_1009_AXIS_X] = obj->data[KXTJ2_1009_AXIS_X];
 		acc[KXTJ2_1009_AXIS_Y] = obj->data[KXTJ2_1009_AXIS_Y];
 		acc[KXTJ2_1009_AXIS_Z] = obj->data[KXTJ2_1009_AXIS_Z];		
@@ -1714,7 +1714,7 @@ static int kxtj2_1009_delete_attr(struct device_driver *driver)
  * Function Configuration
 ******************************************************************************/
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 static void kxtj2_1009_irq_work(struct work_struct *work)
 {
     struct kxtj2_1009_i2c_data *obj = obj_i2c_data;
@@ -1817,7 +1817,7 @@ static int kxtj2_1009_setup_irq()
     
 	return err;
 }
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 /*----------------------------------------------------------------------------*/
 static int kxtj2_1009_open(struct inode *inode, struct file *file)
 {
@@ -2071,20 +2071,19 @@ static int kxtj2_1009_suspend(struct i2c_client *client, pm_message_t msg)
 		}
         mutex_lock(&kxtj2_1009_mutex);
 		atomic_set(&obj->suspend, 1);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 		if(0 != (err = KXTJ2_1009_SCP_SetPowerMode(false)))
 #else
 		if(0 != (err = KXTJ2_1009_SetPowerMode(obj->client,false)))
 #endif
 		{
 			GSE_ERR("write power control fail!!\n");
-			mutex_unlock(&kxtj2_1009_mutex);
 			return -1;
 		}
         mutex_unlock(&kxtj2_1009_mutex);
 
 		//sensor_power = false;      
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 		KXTJ2_1009_power(obj->hw, 0);
 #endif
 	}
@@ -2103,18 +2102,17 @@ static int kxtj2_1009_resume(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	KXTJ2_1009_power(obj->hw, 1);
 #endif
     mutex_lock(&kxtj2_1009_mutex);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(0 != (err = KXTJ2_1009_SCP_SetPowerMode(enable_status)))
 #else
 	if(0 != (err = kxtj2_1009_init_client(client, 0)))
 #endif
 	{
 		GSE_ERR("initialize client fail!!\n");
-		mutex_unlock(&kxtj2_1009_mutex);
 		return err;        
 	}
 	atomic_set(&obj->suspend, 0);
@@ -2138,20 +2136,19 @@ static void kxtj2_1009_early_suspend(struct early_suspend *h)
 	}
 	mutex_lock(&kxtj2_1009_mutex);
 	atomic_set(&obj->suspend, 1);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(err = KXTJ2_1009_SCP_SetPowerMode(false))
 #else
 	if(err = KXTJ2_1009_SetPowerMode(obj->client, false))
 #endif
 	{
 		GSE_ERR("write power control fail!!\n");
-		mutex_unlock(&kxtj2_1009_mutex);
 		return;
 	}
 	mutex_unlock(&kxtj2_1009_mutex);
 
 	//sensor_power = false;
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)	
+#ifndef CUSTOM_KERNEL_SENSORHUB	
 	KXTJ2_1009_power(obj->hw, 0);
 #endif
 }
@@ -2168,18 +2165,17 @@ static void kxtj2_1009_late_resume(struct early_suspend *h)
 		return;
 	}
 
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 	KXTJ2_1009_power(obj->hw, 1);
 #endif
 	mutex_lock(&kxtj2_1009_mutex);
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 	if(err = KXTJ2_1009_SCP_SetPowerMode(enable_status))
 #else
 	if(err = kxtj2_1009_init_client(obj->client, 0))
 #endif
 	{
 		GSE_ERR("initialize client fail!!\n");
-		mutex_unlock(&kxtj2_1009_mutex);
 		return;        
 	}
 	atomic_set(&obj->suspend, 0); 
@@ -2213,9 +2209,9 @@ static int kxtj2_1009_enable_nodata(int en)
 		enable_status = !sensor_power;
 		if (atomic_read(&obj_i2c_data->suspend) == 0)
 		{
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
             err = KXTJ2_1009_SCP_SetPowerMode(enable_status);
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 			err = KXTJ2_1009_SetPowerMode(obj_i2c_data->client, enable_status);
 #endif
 			GSE_LOG("Gsensor not in suspend KXTJ2_1009_SetPowerMode!, enable_status = %d\n",enable_status);
@@ -2241,16 +2237,16 @@ static int kxtj2_1009_set_delay(u64 ns)
 {
     int err = 0;
     int value;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     SCP_SENSOR_HUB_DATA req;
     int len;
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB
 	int sample_delay;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
     value = (int)ns/1000/1000;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     req.set_delay_req.sensorType = ID_ACCELEROMETER;
     req.set_delay_req.action = SENSOR_HUB_SET_DELAY;
     req.set_delay_req.delay = value;
@@ -2261,7 +2257,7 @@ static int kxtj2_1009_set_delay(u64 ns)
         GSE_ERR("SCP_sensorHub_req_send!\n");
         return err;
     }
-#else//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)    
+#else//#ifdef CUSTOM_KERNEL_SENSORHUB    
 	if(value <= 5)
 	{
 		sample_delay = KXTJ2_1009_BW_200HZ;
@@ -2299,7 +2295,7 @@ static int kxtj2_1009_set_delay(u64 ns)
 		atomic_set(&priv->filter, 1);
 	#endif
 	}
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
     
     GSE_LOG("kxtj2_1009_set_delay (%d)\n",value);
 
@@ -2310,7 +2306,7 @@ static int kxtj2_1009_set_batch(int flags, int64_t period_ns, int64_t timeout)
 {
     int err = 0;
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     uint32_t period_ms;
     uint32_t timeout_ms;
     SCP_SENSOR_HUB_DATA req;
@@ -2340,7 +2336,7 @@ static int kxtj2_1009_set_batch(int flags, int64_t period_ns, int64_t timeout)
 
 static int kxtj2_1009_get_data(int* x ,int* y,int* z, int* status)
 {
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 		SCP_SENSOR_HUB_DATA req;
 		int len;
 		int err = 0;
@@ -2348,7 +2344,7 @@ static int kxtj2_1009_get_data(int* x ,int* y,int* z, int* status)
 	char buff[KXTJ2_1009_BUFSIZE];
 #endif
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 		req.get_data_req.sensorType = ID_ACCELEROMETER;
 		req.get_data_req.action = SENSOR_HUB_GET_DATA;
 		len = sizeof(req.get_data_req);
@@ -2368,9 +2364,9 @@ static int kxtj2_1009_get_data(int* x ,int* y,int* z, int* status)
 		}
 
 		//sscanf(buff, "%x %x %x", req.get_data_rsp.int16_Data[0], req.get_data_rsp.int16_Data[1], req.get_data_rsp.int16_Data[2]);
-		*x = (int)req.get_data_rsp.int16_Data[0]*GRAVITY_EARTH_1000/1000;
-		*y = (int)req.get_data_rsp.int16_Data[1]*GRAVITY_EARTH_1000/1000;
-		*z = (int)req.get_data_rsp.int16_Data[2]*GRAVITY_EARTH_1000/1000;
+		*x = req.get_data_rsp.int16_Data[0];
+		*y = req.get_data_rsp.int16_Data[1];
+		*z = req.get_data_rsp.int16_Data[2];
 		GSE_ERR("x = %d, y = %d, z = %d\n", *x, *y, *z);
 		*status = SENSOR_STATUS_ACCURACY_MEDIUM;
 
@@ -2414,9 +2410,9 @@ static int kxtj2_1009_i2c_probe(struct i2c_client *client, const struct i2c_devi
 		goto exit;
 	}
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     INIT_WORK(&obj->irq_work, kxtj2_1009_irq_work);
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 	obj_i2c_data = obj;
 	obj->client = client;
@@ -2426,9 +2422,9 @@ static int kxtj2_1009_i2c_probe(struct i2c_client *client, const struct i2c_devi
 	atomic_set(&obj->trace, 0);
 	atomic_set(&obj->suspend, 0);
 
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     obj->SCP_init_done = 0;
-#endif//#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#endif//#ifdef CUSTOM_KERNEL_SENSORHUB
 
 #ifdef CONFIG_KXTJ2_1009_LOWPASS
 	if(obj->hw->firlen > C_MAX_FIR_LENGTH)
@@ -2472,7 +2468,7 @@ static int kxtj2_1009_i2c_probe(struct i2c_client *client, const struct i2c_devi
 	ctl.set_delay  = kxtj2_1009_set_delay;
     //ctl.batch = kxtj2_1009_set_batch;
 	ctl.is_report_input_direct = false;
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
     ctl.is_support_batch = obj->hw->is_batch_supported;
 #else
     ctl.is_support_batch = false;
@@ -2493,7 +2489,7 @@ static int kxtj2_1009_i2c_probe(struct i2c_client *client, const struct i2c_devi
 	 	GSE_ERR("register acc data path err\n");
 		goto exit_create_attr_failed;
 	}
-	err = batch_register_support_info(ID_ACCELEROMETER,ctl.is_support_batch, 102, 0); //divisor is 1000/9.8
+	err = batch_register_support_info(ID_ACCELEROMETER,ctl.is_support_batch, 1000, 0);
     if(err)
     {
         GSE_ERR("register gsensor batch support err = %d\n", err);

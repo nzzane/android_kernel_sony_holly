@@ -31,7 +31,6 @@
 #define EVENT_TYPE_ACCEL_X          		ABS_X
 #define EVENT_TYPE_ACCEL_Y          		ABS_Y
 #define EVENT_TYPE_ACCEL_Z          		ABS_Z
-#define EVENT_TYPE_ACCEL_UPDATE              REL_X
 #define EVENT_TYPE_ACCEL_STATUS     ABS_WHEEL
 #define EVENT_TYPE_ACCEL_DIV        ABS_GAS
 
@@ -122,4 +121,9 @@ extern int acc_driver_add(struct acc_init_info* obj) ;
 extern int acc_data_report(int x, int y, int z,int status);
 extern int acc_register_control_path(struct acc_control_path *ctl);
 extern int acc_register_data_path(struct acc_data_path *data);
+
+
+
+
+
 #endif

@@ -699,18 +699,30 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	unsigned long	flags;
 	char		buffer[6];	/* Any root hubs with > 31 ports? */
 
-	if (unlikely(!hcd->rh_pollable))
-		return;
-	if (!hcd->uses_new_polling && !hcd->status_urb)
-		return;
+	MYDBG("");
 
+	if (unlikely(!hcd->rh_pollable))
+	{
+		MYDBG("");
+		return;
+	}
+	if (!hcd->uses_new_polling && !hcd->status_urb)
+	{
+		MYDBG("");
+		return;
+	}
+
+	MYDBG("");
 	length = hcd->driver->hub_status_data(hcd, buffer);
+	MYDBG("");
 	if (length > 0) {
+		MYDBG("");
 
 		/* try to complete the status urb */
 		spin_lock_irqsave(&hcd_root_hub_lock, flags);
 		urb = hcd->status_urb;
 		if (urb) {
+			MYDBG("");
 			clear_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
 			hcd->status_urb = NULL;
 			urb->actual_length = length;
@@ -721,11 +733,13 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			usb_hcd_giveback_urb(hcd, urb, 0);
 			spin_lock(&hcd_root_hub_lock);
 		} else {
+			MYDBG("");
 			length = 0;
 			set_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
 		}
 		spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	}
+	MYDBG("");
 
 	/* The USB 2.0 spec says 256 ms.  This is close enough and won't
 	 * exceed that limit if HZ is 100. The math is more clunky than
@@ -733,7 +747,10 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	 * fire at the same time to give the CPU a break in between */
 	if (hcd->uses_new_polling ? HCD_POLL_RH(hcd) :
 			(length == 0 && hcd->status_urb != NULL))
+	{
+		MYDBG("");
 		mod_timer (&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
+	}
 }
 EXPORT_SYMBOL_GPL(usb_hcd_poll_rh_status);
 
@@ -889,9 +906,9 @@ static struct attribute_group usb_bus_attr_group = {
  * This code is used to initialize a usb_bus structure, memory for which is
  * separately managed.
  */
-static void usb_bus_init(struct usb_bus *bus)
+static void usb_bus_init (struct usb_bus *bus)
 {
-	memset(&bus->devmap, 0, sizeof(struct usb_devmap));
+	memset (&bus->devmap, 0, sizeof(struct usb_devmap));
 
 	bus->devnum_next = 1;
 
@@ -902,9 +919,6 @@ static void usb_bus_init(struct usb_bus *bus)
 	bus->bandwidth_isoc_reqs = 0;
 
 	INIT_LIST_HEAD (&bus->bus_list);
-#if defined(CONFIG_USB_MTK_OTG) && defined(CONFIG_USBIF_COMPLIANCE)
-	INIT_DELAYED_WORK(&bus->hnp_polling, usb_hnp_polling_work);
-#endif
 }
 
 /*-------------------------------------------------------------------------*/
@@ -934,12 +948,6 @@ static int usb_register_bus(struct usb_bus *bus)
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
 	mutex_unlock(&usb_bus_list_lock);
-#if defined(CONFIG_USB_MTK_OTG) && defined(CONFIG_USBIF_COMPLIANCE)
-	/* Obvioulsy HNP is supported on B-host */
-	dev_err(bus->controller, "usb_register_bus - is_b_host: %d, hnp_support: %d", bus->is_b_host, bus->hnp_support);
-	if (bus->is_b_host)
-		bus->hnp_support = 1;
-#endif
 
 	usb_notify_add_bus(bus);
 
@@ -2175,10 +2183,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USBIF_COMPLIANCE)
-#define CONFIG_USB_OTG
-#endif
-#ifdef CONFIG_USB_OTG
+#ifdef	CONFIG_USB_OTG
 
 /**
  * usb_bus_start_enum - start immediate enumeration (for OTG)

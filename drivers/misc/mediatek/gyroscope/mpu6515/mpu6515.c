@@ -1302,7 +1302,7 @@ static int mpu6515_init_client(struct i2c_client *client, bool enable)
     }
 
     // Set 125HZ sample rate
-    res = MPU6515_SetSampleRate(client, 200);
+    res = MPU6515_SetSampleRate(client, 125);
     if (res != MPU6515_SUCCESS )
     {
         return res;
@@ -1606,7 +1606,7 @@ static int mpu6515_suspend(struct i2c_client *client, pm_message_t msg)
         }
         atomic_set(&obj->suspend, 1);       
         MPU6515_SetPWR_MGMT_2(client, false);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
         err = MPU6515_SetPowerMode(client, false);
 #else
         err = MPU6515_SCP_SetPowerMode(false, ID_GYROSCOPE);
@@ -1633,7 +1633,7 @@ static int mpu6515_resume(struct i2c_client *client)
 
     MPU6515_power(obj->hw, 1);
     MPU6515_SetPWR_MGMT_2(client, enable_status);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = mpu6515_init_client(client, false);
 #else
     err = MPU6515_SCP_SetPowerMode(enable_status, ID_GYROSCOPE);
@@ -1664,7 +1664,7 @@ static void mpu6515_early_suspend(struct early_suspend *h)
     }
     atomic_set(&obj->suspend, 1);
     MPU6515_SetPWR_MGMT_2(obj->client, false);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = MPU6515_SetPowerMode(obj->client, false);
 #else
     err = MPU6515_SCP_SetPowerMode(false, ID_GYROSCOPE);
@@ -1694,7 +1694,7 @@ static void mpu6515_late_resume(struct early_suspend *h)
 
     MPU6515_power(obj->hw, 1);
     MPU6515_SetPWR_MGMT_2(obj->client, enable_status);
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
     err = mpu6515_init_client(obj->client, false);
 #else
     err = MPU6515_SCP_SetPowerMode(enable_status, ID_GYROSCOPE);
@@ -1736,7 +1736,7 @@ static int gyroscope_enable_nodata(int en)
 		enable_status = !sensor_power;
 		if (atomic_read(&obj_i2c_data->suspend) == 0)
 		{
-#if !defined(CONFIG_MTK_SCP_SENSORHUB) || !defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifndef CUSTOM_KERNEL_SENSORHUB
 			err = MPU6515_SetPowerMode(obj_i2c_data->client, enable_status);
 #else
             err = MPU6515_SCP_SetPowerMode(enable_status, ID_GYROSCOPE);

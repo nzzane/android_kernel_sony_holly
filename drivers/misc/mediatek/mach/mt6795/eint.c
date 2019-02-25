@@ -24,9 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-
-#include <linux/fih_hw_info.h> //+WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01
-
 #define EINT_DEBUG 0
 #if(EINT_DEBUG == 1)
 #define dbgmsg printk
@@ -1228,13 +1225,7 @@ static void setup_MD_eint(void)
 #if defined(CUST_EINT_MD1_0_NAME)
         sprintf(md_sim_info[md_sim_counter].name, CUST_EINT_MD1_0_NAME);
         md_sim_info[md_sim_counter].eint_num = CUST_EINT_MD1_0_NUM;
-        //md_sim_info[md_sim_counter].eint_pol= CUST_EINT_MD1_0_POLARITY; //-WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01
-        //+{WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01
-        if (PHASE_PD <= fih_get_product_phase() && PHASE_MP >= fih_get_product_phase())
-          md_sim_info[md_sim_counter].eint_pol= 0; //low active
-        else
         md_sim_info[md_sim_counter].eint_pol= CUST_EINT_MD1_0_POLARITY;
-        //WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01}+
         md_sim_info[md_sim_counter].eint_sens = CUST_EINT_MD1_0_SENSITIVE;
         md_sim_info[md_sim_counter].socket_type = get_type(md_sim_info[md_sim_counter].name);
         md_sim_info[md_sim_counter].eint_deb = CUST_EINT_MD1_0_DEBOUNCE_CN;
@@ -1247,13 +1238,7 @@ static void setup_MD_eint(void)
 #if defined(CUST_EINT_MD1_1_NAME)
         sprintf(md_sim_info[md_sim_counter].name, CUST_EINT_MD1_1_NAME);
         md_sim_info[md_sim_counter].eint_num = CUST_EINT_MD1_1_NUM;
-        //md_sim_info[md_sim_counter].eint_pol= CUST_EINT_MD1_1_POLARITY; //-WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01
-        //+{WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01
-        if (PHASE_PD <= fih_get_product_phase() && PHASE_MP >= fih_get_product_phase())
-          md_sim_info[md_sim_counter].eint_pol = 0; //low active
-        else
         md_sim_info[md_sim_counter].eint_pol= CUST_EINT_MD1_1_POLARITY;
-        //WP1L2P2-EH-SIM_HOTSWAP_PLUG_CFG-01}+
         md_sim_info[md_sim_counter].eint_sens = CUST_EINT_MD1_1_SENSITIVE;
         md_sim_info[md_sim_counter].socket_type = get_type(md_sim_info[md_sim_counter].name);
         md_sim_info[md_sim_counter].eint_deb = CUST_EINT_MD1_1_DEBOUNCE_CN;

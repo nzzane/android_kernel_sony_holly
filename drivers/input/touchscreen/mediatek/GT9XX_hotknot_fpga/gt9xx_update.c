@@ -135,7 +135,6 @@ typedef struct
 
 st_update_msg update_msg;
 extern struct i2c_client *i2c_client_point;
-extern unsigned int touch_irq;
 u16 show_len;
 u16 total_len;
 extern u8 fw_updating;
@@ -2285,13 +2284,8 @@ s32 gup_update_proc(void *dir)
         GTP_ERROR("[update_proc]Check *.bin file fail.");
         goto file_fail;
     }
-	
-#ifdef CONFIG_OF_TOUCH
-	disable_irq(touch_irq);
-#else
-	mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif
 
+    mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
 #if GTP_ESD_PROTECT
     gtp_esd_switch(i2c_client_point, SWITCH_OFF);
 #endif
@@ -2404,13 +2398,7 @@ update_fail:
 #endif
 
 file_fail:
-
-#ifdef CONFIG_OF_TOUCH
-	enable_irq(touch_irq);
-#else
-	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif 
-
+    mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
     
 	if (update_msg.file && !IS_ERR(update_msg.file))
 	{
@@ -3129,12 +3117,7 @@ s32 gup_fw_download_proc(void *dir, u8 dwn_mode)
         goto file_fail;
     }
     
-#ifdef CONFIG_OF_TOUCH
-	disable_irq(touch_irq);
-#else
-	mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif
-
+    mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
     if (NULL != dir)
     {
     #if GTP_ESD_PROTECT
@@ -3187,13 +3170,7 @@ s32 gup_fw_download_proc(void *dir, u8 dwn_mode)
     #endif    
     }
     show_len = 100;
-	
-#ifdef CONFIG_OF_TOUCH
-	enable_irq(touch_irq);
-#else
-	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif 
-
+    mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
     return SUCCESS;
     
 download_fail:
@@ -3207,13 +3184,7 @@ download_fail:
     
 file_fail:
     show_len = 200;
-	
-#ifdef CONFIG_OF_TOUCH
-	enable_irq(touch_irq);
-#else
-	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif 
-
+    mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
     return FAIL;
 }
 
@@ -3354,13 +3325,13 @@ void gup_output_pulse(int t)
     udelay(10);
     
     local_irq_save(flags);
-
+#if 0 //fpga
     mt_set_gpio_out(GTP_INT_PORT, 1);
     udelay(50);
     mt_set_gpio_out(GTP_INT_PORT, 0);
     udelay(t - 50);
     mt_set_gpio_out(GTP_INT_PORT, 1);
-
+#endif 
     local_irq_restore(flags);
 
     udelay(20);
@@ -3459,16 +3430,16 @@ u8 gup_clk_calibration(void)
         
         //local_irq_save(flags);
         do_gettimeofday(&start);
-        mt_set_gpio_out(GTP_INT_PORT, 1);
+        // fpga mt_set_gpio_out(GTP_INT_PORT, 1);
         //local_irq_restore(flags);
         
         msleep(1);
-        mt_set_gpio_out(GTP_INT_PORT, 0);
+        // fpga mt_set_gpio_out(GTP_INT_PORT, 0);
         msleep(1);
         
         //local_irq_save(flags);
         do_gettimeofday(&end);
-        mt_set_gpio_out(GTP_INT_PORT, 1);
+        // fpga mt_set_gpio_out(GTP_INT_PORT, 1);
         //local_irq_restore(flags);
         
         count = gup_clk_count_get();
@@ -3691,12 +3662,8 @@ s32 gup_load_system(char *firmware, s32 length, u8 need_check)
     s32 ret = -1;
     u8 bank = 0;
 
-#ifdef CONFIG_OF_TOUCH
-	disable_irq(touch_irq);
-#else
-	mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif
-
+    //disable irq & ESD protect 
+    mt_eint_mask(CUST_EINT_TOUCH_PANEL_NUM);
 #if GTP_ESD_PROTECT
     gtp_esd_switch(i2c_client_point, SWITCH_OFF);
 #endif
@@ -3729,13 +3696,7 @@ gup_load_system_exit:
     gtp_esd_switch(i2c_client_point, SWITCH_ON);
 #endif
 #endif
-
-#ifdef CONFIG_OF_TOUCH
-	enable_irq(touch_irq);
-#else
-	mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
-#endif 
-
+    mt_eint_unmask(CUST_EINT_TOUCH_PANEL_NUM);
     return ret;    
 }
 

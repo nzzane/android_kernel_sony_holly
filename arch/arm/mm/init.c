@@ -385,7 +385,7 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
 		mdesc->reserve();
-	
+
 	early_init_fdt_scan_reserved_mem();
 
     //reserve for ion_carveout_heap

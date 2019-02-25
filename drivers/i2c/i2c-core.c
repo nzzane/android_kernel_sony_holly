@@ -44,13 +44,6 @@
 #include <linux/acpi.h>
 #include <asm/uaccess.h>
 
-#define CONFIG_FIH_SUSPEND_RESUME_LOG //CORE-TH-SUSPEND_RESUME_WAKELOCK_LOG-00+
-
-//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-#include <linux/kallsyms.h>
-#endif
-//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 #include "i2c-core.h"
 
 
@@ -213,6 +206,7 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 	adap->bus_recovery_info->set_scl(adap, 1);
 	return i2c_generic_recovery(adap);
 }
+EXPORT_SYMBOL_GPL(i2c_generic_scl_recovery);
 
 int i2c_generic_gpio_recovery(struct i2c_adapter *adap)
 {
@@ -227,6 +221,7 @@ int i2c_generic_gpio_recovery(struct i2c_adapter *adap)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(i2c_generic_gpio_recovery);
 
 int i2c_recover_bus(struct i2c_adapter *adap)
 {
@@ -236,6 +231,7 @@ int i2c_recover_bus(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "Trying i2c bus recovery\n");
 	return adap->bus_recovery_info->recover_bus(adap);
 }
+EXPORT_SYMBOL_GPL(i2c_recover_bus);
 
 static int i2c_device_probe(struct device *dev)
 {
@@ -310,11 +306,6 @@ static int i2c_legacy_suspend(struct device *dev, pm_message_t mesg)
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->suspend)
 		return 0;
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-       printk(KERN_ERR "[PM]i2c-core:  i2c legacy suspend: [%s] \n", driver->driver.name);
-	#endif
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 	return driver->suspend(client, mesg);
 }
 
@@ -328,33 +319,15 @@ static int i2c_legacy_resume(struct device *dev)
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->resume)
 		return 0;
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	 printk(KERN_ERR "[PM]i2c-core:  i2c legacy resume: [%s] \n", driver->driver.name);
-	#endif
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 	return driver->resume(client);
 }
 
 static int i2c_device_pm_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	const struct dev_pm_ops *temp ;
-	#endif
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 
 	if (pm)
-	{
-		//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-		temp  = dev->driver->pm;
-   	 	print_symbol("[PM]i2c pm suspend: %s\n", (unsigned long)temp->suspend);
-		#endif
-		//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 		return pm_generic_suspend(dev);
-	}
 	else
 		return i2c_legacy_suspend(dev, PMSG_SUSPEND);
 }
@@ -362,22 +335,9 @@ static int i2c_device_pm_suspend(struct device *dev)
 static int i2c_device_pm_resume(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	const struct dev_pm_ops *temp ;
-	#endif
-	//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 
 	if (pm)
-	{
-		//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+[
-		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-        temp  = dev->driver->pm;
-   	 	print_symbol("i2c pm resume: %s\n", (unsigned long)temp->resume);
-		#endif
-		//CORE-BH-SUSPEND_RESUME_WAKELOCK_LOG-00+]
 		return pm_generic_resume(dev);
-	}
 	else
 		return i2c_legacy_resume(dev);
 }
@@ -1363,6 +1323,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
+	INIT_LIST_HEAD(&driver->clients);
 
 	/* When registration returns, the driver core
 	 * will have called probe() for all matching-but-unbound devices.
@@ -1381,7 +1342,6 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
-	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
 	i2c_for_each_dev(driver, __process_new_driver);
 

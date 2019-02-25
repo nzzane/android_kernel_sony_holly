@@ -21,7 +21,7 @@
 #ifdef BUILD_LK
 #define LCD_DEBUG(fmt)  dprintf(CRITICAL,fmt)
 #else
-#define LCD_DEBUG(fmt)  pr_debug(fmt)
+#define LCD_DEBUG(fmt)  printk(fmt)
 #endif
 //static unsigned char lcd_id_pins_value = 0xFF;
 static const unsigned char LCD_MODULE_ID = 0x01; //  haobing modified 2013.07.11
@@ -123,6 +123,7 @@ static struct i2c_driver tps65132_iic_driver = {
     .id_table	= tps65132_id,
     .probe		= tps65132_probe,
     .remove		= tps65132_remove,
+    //.detect		= mt6605_detect,
     .driver		= {
     .owner	= THIS_MODULE,
     .name	= "tps65132",
@@ -137,8 +138,8 @@ static struct i2c_driver tps65132_iic_driver = {
 *****************************************************************************/ 
 static int tps65132_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {  
-    pr_debug( "tps65132_iic_probe\n");
-    pr_debug("TPS: info==>name=%s addr=0x%x\n",client->name,client->addr);
+    printk( "tps65132_iic_probe\n");
+    printk("TPS: info==>name=%s addr=0x%x\n",client->name,client->addr);
     tps65132_i2c_client  = client;		
     return 0;      
 }
@@ -146,7 +147,7 @@ static int tps65132_probe(struct i2c_client *client, const struct i2c_device_id 
 
 static int tps65132_remove(struct i2c_client *client)
 {  	
-    pr_debug( "tps65132_remove\n");
+    printk( "tps65132_remove\n");
     tps65132_i2c_client = NULL;
     i2c_unregister_device(client);
     return 0;
@@ -160,7 +161,7 @@ int tps65132_write_bytes(unsigned char addr, unsigned char value)
 
 	if(client == NULL)
 	{
-		pr_debug("ERROR!!tps65132_i2c_client is null\n");
+		printk("ERROR!!tps65132_i2c_client is null\n");
 		return 0;
 	}
 	
@@ -169,7 +170,7 @@ int tps65132_write_bytes(unsigned char addr, unsigned char value)
     write_data[1] = value;
     ret=i2c_master_send(client, write_data, 2);
     if(ret<0)
-        pr_debug("tps65132 write data fail !!\n");	
+        printk("tps65132 write data fail !!\n");	
     return ret ;
 }
 EXPORT_SYMBOL_GPL(tps65132_write_bytes);
@@ -181,17 +182,17 @@ EXPORT_SYMBOL_GPL(tps65132_write_bytes);
 
 static int __init tps65132_iic_init(void)
 {
-    pr_debug( "tps65132_iic_init\n");
+    printk( "tps65132_iic_init\n");
     i2c_register_board_info(TPS_I2C_BUSNUM, &tps65132_board_info, 1);
-    pr_debug( "tps65132_iic_init2\n");
+    printk( "tps65132_iic_init2\n");
     i2c_add_driver(&tps65132_iic_driver);
-    pr_debug( "tps65132_iic_init success\n");	
+    printk( "tps65132_iic_init success\n");	
     return 0;
 }
 
 static void __exit tps65132_iic_exit(void)
 {
-    pr_debug( "tps65132_iic_exit\n");
+    printk( "tps65132_iic_exit\n");
     i2c_del_driver(&tps65132_iic_driver);  
 }
 
@@ -488,9 +489,9 @@ static void lcm_init_power(void)
 #ifdef BUILD_LK
 	mt6331_upmu_set_rg_vgp1_en(1);
 #else
-	pr_debug("%s, begin\n", __func__);
+	printk("%s, begin\n", __func__);
 	hwPowerOn(MT6331_POWER_LDO_VGP1, VOL_DEFAULT, "LCM_DRV");	
-	pr_debug("%s, end\n", __func__);
+	printk("%s, end\n", __func__);
 #endif
 }
 
@@ -500,9 +501,9 @@ static void lcm_resume_power(void)
 #ifdef BUILD_LK
 	mt6331_upmu_set_rg_vgp1_en(1);
 #else
-	pr_debug("%s, begin\n", __func__);
+	printk("%s, begin\n", __func__);
 	hwPowerOn(MT6331_POWER_LDO_VGP1, VOL_DEFAULT, "LCM_DRV");	
-	pr_debug("%s, end\n", __func__);
+	printk("%s, end\n", __func__);
 #endif
 }
 
@@ -512,9 +513,9 @@ static void lcm_suspend_power(void)
 #ifdef BUILD_LK
 	mt6331_upmu_set_rg_vgp1_en(0);
 #else
-	pr_debug("%s, begin\n", __func__);
+	printk("%s, begin\n", __func__);
 	hwPowerDown(MT6331_POWER_LDO_VGP1, "LCM_DRV");	
-	pr_debug("%s, end\n", __func__);
+	printk("%s, end\n", __func__);
 #endif
 }
 
@@ -539,9 +540,9 @@ static void lcm_init(void)
 #else
 	ret=tps65132_write_bytes(cmd,data);
 	if(ret<0)
-	pr_debug("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write error-----\n",cmd);
+	printk("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write error-----\n",cmd);
 	else
-	pr_debug("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write success-----\n",cmd);
+	printk("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write success-----\n",cmd);
 #endif
 
 	cmd=0x01;
@@ -555,9 +556,9 @@ static void lcm_init(void)
 #else
 	ret=tps65132_write_bytes(cmd,data);
 	if(ret<0)
-	pr_debug("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write error-----\n",cmd);
+	printk("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write error-----\n",cmd);
 	else
-	pr_debug("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write success-----\n",cmd);
+	printk("[KERNEL]r63419----tps6132---cmd=%0x-- i2c write success-----\n",cmd);
 #endif
 
     SET_RESET_PIN(1);
@@ -659,7 +660,7 @@ static unsigned int lcm_compare_id(void)
 #ifdef BUILD_LK
     dprintf(0, "%s, LK r63419 debug: r63419 id = 0x%08x\n", __func__, lcd_id);
 #else
-    pr_debug("%s, kernel r63419 horse debug: r63419 id = 0x%08x\n", __func__, lcd_id);
+    printk("%s, kernel r63419 horse debug: r63419 id = 0x%08x\n", __func__, lcd_id);
 #endif
 
     if(lcd_id == LCM_ID_R63419)

@@ -710,7 +710,7 @@ out:
  * If that doesn't work out then we put the old page into the bio and add this
  * page to the dio instead.
  */
-#ifdef CONFIG_MTK_GMO_RAM_OPTIMIZE
+#ifdef CONFIG_MTK_LCA_RAM_OPTIMIZE
 static int
 #else
 static inline int
@@ -750,6 +750,7 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
 					tmp_logger->pid2 = current->pid;
 			}
 			spin_unlock_irqrestore(&g_locker, flags);
+			//printk(KERN_INFO"submit_page_sction pid1:%u pid2:%u pfn:%d \n", tmp_logger->pid1, tmp_logger->pid2, page_index );
 		}
 #endif
 	}
@@ -789,7 +790,8 @@ out:
 	 */
 	if (sdio->boundary) {
 		ret = dio_send_cur_page(dio, sdio, map_bh);
-		dio_bio_submit(dio, sdio);
+		if (sdio->bio)
+			dio_bio_submit(dio, sdio);
 		page_cache_release(sdio->cur_page);
 		sdio->cur_page = NULL;
 	}
@@ -963,6 +965,7 @@ do_holes:
 						i_size_aligned >> blkbits) {
 					/* We hit eof */
 					page_cache_release(page);
+					dio_cleanup(dio, sdio);
 					goto out;
 				}
 				zero_user(page, block_in_page << blkbits,
@@ -1313,6 +1316,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
 	dio_submit_t submit_io,	int flags)
 {
+    //printk("%s:%d:DENIS \n", __FUNCTION__, __LINE__);
 	/*
 	 * The block device state is needed in the end to finally
 	 * submit everything.  Since it's likely to be cache cold

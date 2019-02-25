@@ -1,6 +1,5 @@
-include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
-obj-$(CONFIG_MTK_MMC) += $(subst ",,$(CONFIG_MTK_PLATFORM))/
+obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 
 ifeq ($(CONFIG_TRUSTONIC_TEE_SUPPORT),y)
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/mach/common/include/trustzone/rpmb/drrpmb/public
@@ -8,9 +7,15 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/mach/common/include/trustzone/rp
 endif
 
 ifeq ($(CONFIG_TRUSTONIC_TEE_SUPPORT),y)
-include $(srctree)/drivers/misc/mediatek/gud/Makefile.include
+ifeq ($(CONFIG_ARM64), y)
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/include \
+             -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/public 
+else
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/include \
+             -I$(srctree)/drivers/misc/mediatek/gud/$(MTK_PLATFORM)/gud/MobiCoreKernelApi/public 
+endif
 endif
 
 ccflags-y += -I$(srctree)
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/mmc-host/$(MTK_PLATFORM)
-obj-$(CONFIG_MTK_MMC) += emmc_rpmb.o
+#obj-$(CONFIG_MTK_MMC) += emmc_rpmb.o               #close rpmb by dingyin 

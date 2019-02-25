@@ -20,16 +20,16 @@ static variable defination
 
 #define REGISTER_VALUE(x)   (x - 1)
 
-#define KEY_LIVE 259  /* MM-NC-MultiButton-01 */
 
 static int button_press_debounce = 0x400;
 
 static int debug_enable = 1;
 int cur_key = 0;
-s8 accdet_auxadc_offset;
+
 int accdet_irq;
 unsigned int gpiopin,headsetdebounce;
 struct headset_mode_settings *cust_headset_settings = NULL;
+
 #define ACCDET_DEBUG(format, args...) do{ \
 	if(debug_enable) \
 	{\
@@ -87,10 +87,7 @@ static inline void clear_accdet_eint_interrupt(void);
 static struct work_struct accdet_eint_work;
 static struct workqueue_struct * accdet_eint_workqueue = NULL;
 static inline void accdet_init(void);
-/* MM-NC-MicBias_Timer-00-[+ */
-/* #define MICBIAS_DISABLE_TIMER   (6 *HZ) */        //6 seconds
-#define MICBIAS_DISABLE_TIMER   (2 *HZ)         //2 seconds
-/* MM-NC-MicBias_Timer-00-]- */
+#define MICBIAS_DISABLE_TIMER   (6 *HZ)         //6 seconds
 struct timer_list micbias_timer;
 static void disable_micbias(unsigned long a);
 /* Used to let accdet know if the pin has been fully plugged-in */
@@ -219,11 +216,9 @@ static int Accdet_PMIC_IMM_GetOneChannelValue(int deCount)
 	mdelay(3);
 	while((pmic_pwrap_read(ACCDET_AUXADC_REG)&ACCDET_DATA_READY)!=ACCDET_DATA_READY) {} //wait AUXADC data ready
 	vol_val = (pmic_pwrap_read(ACCDET_AUXADC_REG) & ACCDET_DATA_MASK);
+	//ACCDET_DEBUG("ACCDET read RAW data: 0x%x!! \n\r", vol_val);
 	vol_val = (vol_val*3200)/4096; //mv
-	ACCDET_DEBUG("ACCDET read Voltage: %d mv!!\n\r", vol_val);
-	ACCDET_DEBUG("ACCDET accdet_auxadc_offset: %d mv!!\n\r", accdet_auxadc_offset);
-	vol_val -= accdet_auxadc_offset;
-	ACCDET_DEBUG("ACCDET read Voltage1: %d mv!!\n\r", vol_val);
+	ACCDET_DEBUG("ACCDET read Voltage: %d mv!! \n\r", vol_val);
 	return vol_val;
 }
 
@@ -425,6 +420,13 @@ static void accdet_eint_work_callback(struct work_struct *work)
     }
 #else
    //KE under fastly plug in and plug out
+#ifdef CONFIG_OF
+    disable_irq(accdet_irq);
+#else
+    mt_eint_mask(CUST_EINT_ACCDET_NUM);
+#endif
+	
+   
     if (cur_eint_state == EINT_PIN_PLUG_IN) {
 		ACCDET_DEBUG("[Accdet]EINT func :plug-in\n");
 		mutex_lock(&accdet_eint_irq_sync_mutex);
@@ -536,12 +538,16 @@ static irqreturn_t accdet_eint_func(int irq,void *data)
 	#endif  
 		/* update the eint status */
 		cur_eint_state = EINT_PIN_PLUG_IN;
-		mod_timer(&micbias_timer, jiffies + MICBIAS_DISABLE_TIMER);
+
+		//INIT the timer to disable micbias.
+					
+		init_timer(&micbias_timer);
+		micbias_timer.expires = jiffies + MICBIAS_DISABLE_TIMER;
+		micbias_timer.function = &disable_micbias;
+		micbias_timer.data = ((unsigned long) 0 );
+		add_timer(&micbias_timer);
 	}
-#ifndef ACCDET_EINT_IRQ
-	disable_irq_nosync(accdet_irq);
-#endif
-	ACCDET_DEBUG("[Accdet]accdet_eint_func after cur_eint_state=%d\n", cur_eint_state);
+
 	ret = queue_work(accdet_eint_workqueue, &accdet_eint_work);	
 	return IRQ_HANDLED;
 }
@@ -597,9 +603,16 @@ static void accdet_eint_func(void)
 	#endif  
 		/* update the eint status */
 		cur_eint_state = EINT_PIN_PLUG_IN;
-		mod_timer(&micbias_timer, jiffies + MICBIAS_DISABLE_TIMER);
+
+		//INIT the timer to disable micbias.
+					
+		init_timer(&micbias_timer);
+		micbias_timer.expires = jiffies + MICBIAS_DISABLE_TIMER;
+		micbias_timer.function = &disable_micbias;
+		micbias_timer.data = ((unsigned long) 0 );
+		add_timer(&micbias_timer);
 	}
-	ACCDET_DEBUG("[Accdet]accdet_eint_func after1 cur_eint_state=%d\n", cur_eint_state);
+
 	ret = queue_work(accdet_eint_workqueue, &accdet_eint_work);	
 }
 #endif
@@ -655,27 +668,23 @@ extern int PMIC_IMM_GetOneChannelValue(int dwChannel, int deCount, int trimd);
 #define UP_KEY			 (0x01)
 #define MD_KEY		  	 (0x02)
 #define DW_KEY			 (0x04)
-#define LV_KEY			 (0x08)  /* MM-NC-MultiButton-00 */
 
 
 static DEFINE_MUTEX(accdet_multikey_mutex);
 
 
-/* MM-NC-MultiButton-00-[+ */
+
 /*
 
-          MD          UP          DW         LV
-|----------|-----------|-----------|----------|
-0V<=  MD <0.09V<= UP <0.24V<= DW <0.4V<= LV <0.5
+        MD              UP                DW
+|---------|-----------|----------|
+0V<=MD< 0.09V<= UP<0.24V<=DW <0.5V
 
 */
 
-#define LV_KEY_THR       (500)
-//#define DW_KEY_HIGH_THR	 (500) //0.50v=500000uv
-#define DW_KEY_HIGH_THR	 (400) //0.40v=400000uv
-/* MM-NC-MultiButton-00-]- */
-#define DW_KEY_THR		 (240) //0.24v=240000uv
-#define UP_KEY_THR       (90) //0.09v=90000uv
+#define DW_KEY_HIGH_THR	 (500) //0.50v=500000uv
+#define DW_KEY_THR		 (180) //0.24v=240000uv
+#define UP_KEY_THR       (60) //0.09v=90000uv
 #define MD_KEY_THR		 (0)
 
 static int key_check(int b)
@@ -684,14 +693,7 @@ static int key_check(int b)
 	
 	/* 0.24V ~ */
 	ACCDET_DEBUG("[accdet] come in key_check!!\n");
-/* MM-NC-MultiButton-00-[+ */
-	if((b<LV_KEY_THR)&&(b >= DW_KEY_HIGH_THR))
-	{
-		ACCDET_DEBUG("[accdet]adc_data: %d mv\n",b);
-		return LV_KEY;
-	}
-	else if((b<DW_KEY_HIGH_THR)&&(b >= DW_KEY_THR))
-/* MM-NC-MultiButton-00-]- */
+	if((b<DW_KEY_HIGH_THR)&&(b >= DW_KEY_THR)) 
 	{
 		ACCDET_DEBUG("[accdet]adc_data: %d mv\n",b);
 		return DW_KEY;
@@ -711,9 +713,7 @@ static int key_check(int b)
 }
 static void send_key_event(int keycode,int flag)
 {
-#if 0
-    if(call_status == 0)
-    {
+
                 switch (keycode)
                 {
                 case DW_KEY:
@@ -732,21 +732,16 @@ static void send_key_event(int keycode,int flag)
 					ACCDET_DEBUG("[accdet]KEY_PLAYPAUSE %d\n",flag);
 		   	        break;
                 }
+#if 0
+    if(call_status == 0)
+    {
+
      }
 	else
 	{
-#endif
+
 	          switch (keycode)
               {
-/* MM-NC-MultiButton-00-[+ */
-                case LV_KEY:
-/* MM-NC-MultiButton-01-[+ */
-					input_report_key(kpd_accdet_dev, KEY_LIVE, flag); /* 259 LiveKey */
-/* MM-NC-MultiButton-01-]- */
-					input_sync(kpd_accdet_dev);
-					ACCDET_DEBUG("[accdet]KEY_LIVE %d\n",flag);
-					break;
-/* MM-NC-MultiButton-00-]- */
                 case DW_KEY:
 					input_report_key(kpd_accdet_dev, KEY_VOLUMEDOWN, flag);
 					input_sync(kpd_accdet_dev);
@@ -764,7 +759,7 @@ static void send_key_event(int keycode,int flag)
 					break;
 	          }
 //	}
-
+#endif
 }
 static void multi_key_detection(int current_status)
 {
@@ -920,20 +915,13 @@ static inline void check_cable_type(void)
 					accdet_auxadc_switch(1);//switch on when need to use auxadc read voltage
 					pin_adc_value = Accdet_PMIC_IMM_GetOneChannelValue(1);
 					ACCDET_DEBUG("[Accdet]pin_adc_value = %d mv!\n", pin_adc_value);
-					accdet_auxadc_switch(0);
-/* MM-NC-EnablePinRecon-00-[+ */
-/*					if (200 > pin_adc_value && pin_adc_value> 100) */ //100mv   ilegal headset
-					if (200 > pin_adc_value && pin_adc_value> 70) //70mv   ilegal headset
-/* MM-NC-EnablePinRecon-00-]- */
+					accdet_auxadc_switch(0);			
+					if (200 > pin_adc_value && pin_adc_value> 100) //100mv   ilegal headset
 					{
 						mutex_lock(&accdet_eint_irq_sync_mutex);
 						if(1 == eint_accdet_sync_flag) {
-/* MM-NC-HeadsetDetect-01-[+ */
-/*						cable_type = HEADSET_NO_MIC; */
-/*						accdet_status = HOOK_SWITCH; */
-						cable_type = HEADSET_ILEGAL;
-						accdet_status = NOT_SUPPORT;
-/* MM-NC-HeadsetDetect-01-]- */
+						cable_type = HEADSET_NO_MIC;
+						accdet_status = HOOK_SWITCH;
 						cable_pin_recognition = 1;
 						ACCDET_DEBUG("[Accdet] cable_pin_recognition = %d\n", cable_pin_recognition);
 						}else {
@@ -1240,23 +1228,6 @@ static void accdet_work_callback(struct work_struct *work)
 
     wake_unlock(&accdet_irq_lock);
 }
-void accdet_pmic_Read_Efuse_HPOffset()
-{
-	int i = 0, j = 0;
-	s16 efusevalue[2];
-	for (i = 0x15; i <= 0x16; i++){
-		efusevalue[j] = (s16)pmic_Read_Efuse_HPOffset(i);
-		j++;
-	}
-	ACCDET_DEBUG("accdet efusevalue[0] = 0x%x\n", efusevalue[0]);
-	ACCDET_DEBUG("accdet efusevalue[1] = 0x%x\n", efusevalue[1]);
-	accdet_auxadc_offset = ((efusevalue[0]>>15)&0x01)|(((efusevalue[1])<<1)&0xFE);
-	ACCDET_DEBUG("accdet_auxadc_offset = %x\n", accdet_auxadc_offset);
-	ACCDET_DEBUG("accdet_auxadc_offset = %d\n", accdet_auxadc_offset);
-	accdet_auxadc_offset = (accdet_auxadc_offset/2);
-	ACCDET_DEBUG("accdet_auxadc_offset = %x\n", accdet_auxadc_offset);
-	ACCDET_DEBUG("accdet_auxadc_offset = %d\n", accdet_auxadc_offset);
-}
 
 //ACCDET hardware initial
 static inline void accdet_init(void)
@@ -1281,11 +1252,7 @@ static inline void accdet_init(void)
     // init the debounce time
    #ifdef ACCDET_PIN_RECOGNIZATION
     pmic_pwrap_write(ACCDET_DEBOUNCE0, cust_headset_settings->debounce0);
-/* MM-NC-HeadsetDetect-01-[+ */
-    /* Modify debounce time 2s(0xFFFF)->1s(0x7FFFF) */
-/*    pmic_pwrap_write(ACCDET_DEBOUNCE1, 0xFFFF); */
-    pmic_pwrap_write(ACCDET_DEBOUNCE1, 0x7FFF);
-/* MM-NC-HeadsetDetect-01-]- */
+    pmic_pwrap_write(ACCDET_DEBOUNCE1, 0xFFFF);
     pmic_pwrap_write(ACCDET_DEBOUNCE3, cust_headset_settings->debounce3);	
 	pmic_pwrap_write(ACCDET_DEBOUNCE4, ACCDET_DE4);	
    #else
@@ -1608,11 +1575,6 @@ int mt_accdet_probe(void)
 		ACCDET_DEBUG("[Accdet]kpd_accdet_dev : fail!\n");
 		return -ENOMEM;
 	}
-	//INIT the timer to disable micbias.
-	init_timer(&micbias_timer);
-	micbias_timer.expires = jiffies + MICBIAS_DISABLE_TIMER;
-	micbias_timer.function = &disable_micbias;
-	micbias_timer.data = ((unsigned long) 0 );
 
 	//define multi-key keycode
 	__set_bit(EV_KEY, kpd_accdet_dev->evbit);
@@ -1624,7 +1586,6 @@ int mt_accdet_probe(void)
     __set_bit(KEY_STOPCD, kpd_accdet_dev->keybit);
 	__set_bit(KEY_VOLUMEDOWN, kpd_accdet_dev->keybit);
     __set_bit(KEY_VOLUMEUP, kpd_accdet_dev->keybit);
-    __set_bit(KEY_LIVE, kpd_accdet_dev->keybit);  /* MM-NC-MultiButton-01 */
 	
 	kpd_accdet_dev->id.bustype = BUS_HOST;
 	kpd_accdet_dev->name = "ACCDET";
@@ -1673,7 +1634,6 @@ int mt_accdet_probe(void)
         #endif
 	    //Accdet Hardware Init
 		accdet_init();   
-		accdet_pmic_Read_Efuse_HPOffset();
 		queue_work(accdet_workqueue, &accdet_work); //schedule a work for the first detection				
 		#ifdef ACCDET_EINT
 		  accdet_disable_workqueue = create_singlethread_workqueue("accdet_disable");

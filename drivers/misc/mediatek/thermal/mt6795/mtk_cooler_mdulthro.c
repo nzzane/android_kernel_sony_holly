@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
@@ -21,12 +22,12 @@
 // Extern two API functions from battery driver to limit max charging current. 
 
 #define mtk_cooler_mdulthro_dprintk_always(fmt, args...) \
-  do { pr_notice("thermal/cooler/mdulthro" fmt, ##args); } while(0)
+  do { xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mdulthro", fmt, ##args); } while(0)
 
 #define mtk_cooler_mdulthro_dprintk(fmt, args...) \
   do { \
     if (1 == cl_mdulthro_klog_on) { \
-      pr_notice("thermal/cooler/mdulthro" fmt, ##args); \
+      xlog_printk(ANDROID_LOG_INFO, "thermal/cooler/mdulthro", fmt, ##args); \
     } \
   } while(0)
 

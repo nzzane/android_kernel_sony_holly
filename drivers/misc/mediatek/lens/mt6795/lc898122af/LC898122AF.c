@@ -19,7 +19,7 @@
 #include <linux/compat.h>
 #endif
 
-
+// in K2, main=3, sub=main2=1
 #define LENS_I2C_BUSNUM 0
 static struct i2c_board_info __initdata kd_lens_dev={ I2C_BOARD_INFO("LC898122AF", 0x48)};
 
@@ -29,7 +29,7 @@ static struct i2c_board_info __initdata kd_lens_dev={ I2C_BOARD_INFO("LC898122AF
 
 #define LC898122AF_DEBUG
 #ifdef LC898122AF_DEBUG
-#define LC898122AFDB pr_debug
+#define LC898122AFDB printk
 #else
 #define LC898122AFDB(x,...)
 #endif
@@ -274,53 +274,53 @@ RamAccFixMod(ON); //16bit Fix mode
     addrotp=0x3db;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);
     encal = dataotp!=0xffff ? true : false;
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp, (unsigned int)dataotp);
-    if(encal) RamWriteA(0x1479,dataotp);  //Hall offset X
+    //if(encal) RamWriteA(0x1479,dataotp);  //Hall offset X
     
     addrotp=0x3dd;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x14F9,dataotp);  //Hall offset Y
+    //if(encal) RamWriteA(0x14F9,dataotp);  //Hall offset Y
     
     addrotp=0x3df;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x147A,dataotp);  //Hall bias X
+    //if(encal) RamWriteA(0x147A,dataotp);  //Hall bias X
     
     addrotp=0x3e1;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x14FA,dataotp);  //Hall bias Y
+    //if(encal) RamWriteA(0x14FA,dataotp);  //Hall bias Y
     
     addrotp=0x3e3;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x1450,dataotp);  //Hall AD offset X
+    //if(encal) RamWriteA(0x1450,dataotp);  //Hall AD offset X
     
     addrotp=0x3e5;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x14D0,dataotp);  //Hall AD offset Y
+    //if(encal) RamWriteA(0x14D0,dataotp);  //Hall AD offset Y
     
     addrotp=0x3e7;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x10D3,dataotp);  //Loop gain X
+    //if(encal) RamWriteA(0x10D3,dataotp);  //Loop gain X
     
     addrotp=0x3e9;dataotp=(s4LC898OTP_ReadReg(addrotp+1)<<8)+s4LC898OTP_ReadReg(addrotp);    
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RamWriteA(0x11D3,dataotp);  //Loop gain Y
+    //if(encal) RamWriteA(0x11D3,dataotp);  //Loop gain Y
     		
 RamAccFixMod(OFF); //32bit Float mode
     addrotp=0x3f0;dataotp=s4LC898OTP_ReadReg(addrotp);  
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RegWriteA(0x02a0,dataotp);  //Gyro offset X M
+    //if(encal) RegWriteA(0x02a0,dataotp);  //Gyro offset X M
     addrotp=0xef;dataotp=s4LC898OTP_ReadReg(addrotp);  
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RegWriteA(0x02a1,dataotp);  //Gyro offset X L
+   // if(encal) RegWriteA(0x02a1,dataotp);  //Gyro offset X L
     addrotp=0x3f2;dataotp=s4LC898OTP_ReadReg(addrotp);  
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RegWriteA(0x02a2,dataotp);  //Gyro offset Y M
+    //if(encal) RegWriteA(0x02a2,dataotp);  //Gyro offset Y M
     addrotp=0x3f1;dataotp=s4LC898OTP_ReadReg(addrotp);  
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RegWriteA(0x02a3,dataotp);  //Gyro offset Y L
+    //if(encal) RegWriteA(0x02a3,dataotp);  //Gyro offset Y L
     
     addrotp=0x3f3;dataotp=s4LC898OTP_ReadReg(addrotp);  
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);
-    if(encal) RegWriteA(0x0257,dataotp);//OSC
+   // if(encal) RegWriteA(0x0257,dataotp);//OSC
     
     addrotp=0x3f4;
     dataotp= (s4LC898OTP_ReadReg(addrotp))
@@ -328,7 +328,7 @@ RamAccFixMod(OFF); //32bit Float mode
             +(s4LC898OTP_ReadReg(addrotp+2)<<16)
             +(s4LC898OTP_ReadReg(addrotp+3)<<24); 
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);    
-    if(encal) RamWrite32A(0x1020,dataotp);  //Gyro gain X
+    //if(encal) RamWrite32A(0x1020,dataotp);  //Gyro gain X
     
     addrotp=0x3f8;
     dataotp= (s4LC898OTP_ReadReg(addrotp))
@@ -336,16 +336,16 @@ RamAccFixMod(OFF); //32bit Float mode
             +(s4LC898OTP_ReadReg(addrotp+2)<<16)
             +(s4LC898OTP_ReadReg(addrotp+3)<<24); 
     LC898122AFDB("[LC898122AFOTP]0x%x 0x%x\n", addrotp,  (unsigned int)dataotp);    
-    if(encal) RamWrite32A(0x1120,dataotp);  //Gyro gain Y
+    //if(encal) RamWrite32A(0x1120,dataotp);  //Gyro gain Y
 
 
     RamWriteA(TCODEH, g_u4InitPosition); // focus position
-    RtnCen(0);
-    msleep(100);
-    SetPanTiltMode(ON);
-    msleep(10);
-    OisEna();
-    SetH1cMod(MOVMODE);  //movie mode
+    //RtnCen(0);
+    //msleep(100);
+    //SetPanTiltMode(ON);
+    //msleep(10);
+    //OisEna();
+    //SetH1cMod(MOVMODE);  //movie mode
    // SetH1cMod(0);          //still mode
 
     addrotp=0x20;dataotp=(s4LC898OTP_ReadReg(addrotp)<<8)+s4LC898OTP_ReadReg(addrotp+1);  
@@ -492,22 +492,14 @@ static int LC898122AF_Release(struct inode * a_pstInode, struct file * a_pstFile
 {
     LC898122AFDB("[LC898122AF] LC898122AF_Release - Start\n");
 
-    if (g_s4LC898122AF_Opened == 2)
-    {
-        g_sr = 5;
-		RamWriteA(TCODEH, 100); // focus position
-        msleep(10);
-		RamWriteA(TCODEH, 50); // focus position
-        msleep(10);
-
-        RtnCen(0);
-        SrvCon(X_DIR,OFF);
-        SrvCon(Y_DIR,OFF);        
-    }
-
     if (g_s4LC898122AF_Opened)
     {
         LC898122AFDB("[LC898122AF] feee \n");
+        g_sr = 5;
+				//RamWriteA(TCODEH, 100); // focus position
+        //msleep(10);
+			//	RamWriteA(TCODEH, 50); // focus position
+       // msleep(10);
                                             
         spin_lock(&g_LC898122AF_SpinLock);
         g_s4LC898122AF_Opened = 0;
@@ -515,7 +507,9 @@ static int LC898122AF_Release(struct inode * a_pstInode, struct file * a_pstFile
 
     }
     LC898122AFDB("[LC898122AF] LC898122AF_Release - End\n");
-
+    //RtnCen(0);
+    //SrvCon(X_DIR,OFF);
+    //SrvCon(Y_DIR,OFF);
     return 0;
 }
 
@@ -722,5 +716,4 @@ module_exit(LC898122AF_i2C_exit);
 MODULE_DESCRIPTION("LC898122AF lens module driver");
 MODULE_AUTHOR("KY Chen <vend_james-cc.wu@Mediatek.com>");
 MODULE_LICENSE("GPL");
-
 

@@ -6,10 +6,6 @@
   See the file COPYING.
 */
 
-#if defined(CONFIG_FUSE_IO_LOG)
-#define DEBUG 1
-#endif
-
 #include "fuse_i.h"
 #include "fuse.h"
 
@@ -27,12 +23,16 @@
 #ifdef FUSEIO_TRACE
 struct mutex fuse_iolog_lock;
 
-struct fuse_proc_info fuse_iolog[FUSE_IOLOG_MAX];
-struct task_struct *fuse_iolog_thread = NULL;
+static struct fuse_proc_info fuse_iolog[FUSE_IOLOG_MAX];
+static struct timespec	fuse_iolog_time;
+static struct task_struct *fuse_iolog_thread=NULL;
 
-void fuse_time_diff(struct timespec *start, struct timespec *end, struct timespec *diff)
+void fuse_time_diff(
+    struct timespec *start,
+    struct timespec *end,
+    struct timespec *diff)
 {
-	if ((end->tv_nsec-start->tv_nsec) < 0) {
+	if ((end->tv_nsec-start->tv_nsec)<0) {
 		diff->tv_sec = end->tv_sec-start->tv_sec-1;
 		diff->tv_nsec = 1000000000+end->tv_nsec-start->tv_nsec;
 	} else {
@@ -42,14 +42,15 @@ void fuse_time_diff(struct timespec *start, struct timespec *end, struct timespe
 	return;
 }
 
-struct fuse_ioiog_type_map {
-	int type;
-	const char *str;
+struct fuse_ioiog_type_map
+{
+    int type;
+    const char *str;
 };
 
 #define FUSE_IOLOG_TYPE_MAX 46
 
-static const char *fuse_iolog_type[FUSE_IOLOG_TYPE_MAX] = {
+static const char *fuse_iolog_type[FUSE_IOLOG_TYPE_MAX]={
 	"unknown",	/*0*/
 	"lookup",	/*1*/
 	"forget",	/*2*/
@@ -100,238 +101,234 @@ static const char *fuse_iolog_type[FUSE_IOLOG_TYPE_MAX] = {
 
 static const char *fuse_iolog_type2str(int type)
 {
-	if (type >= 0 && type < FUSE_IOLOG_TYPE_MAX)
-		goto out;
-	else if (type == CUSE_INIT)
-		type = FUSE_IOLOG_TYPE_MAX-1;
-	else
-		type = 0;
+    if (type>=0 && type<FUSE_IOLOG_TYPE_MAX)
+        goto out;
+    else if (type==CUSE_INIT)
+        type=FUSE_IOLOG_TYPE_MAX-1;
+    else
+        type=0;
 out:
-	return fuse_iolog_type[type];
+    return fuse_iolog_type[type];
 }
-
-static char fuse_iolog_buf[FUSE_IOLOG_BUFLEN];
 
 int fuse_iolog_print(void)
 {
-	int i, len, n;
-	char *ptr;
+    int i, len, n;
+    char buf[FUSE_IOLOG_BUFLEN], *ptr;
 
-	len = FUSE_IOLOG_BUFLEN-1;
-	ptr = &fuse_iolog_buf[0];
+    len=FUSE_IOLOG_BUFLEN-1;
+    ptr=&buf[0];
 
-	for (i = 0; i < FUSE_IOLOG_MAX && fuse_iolog[i].valid; i++) {
+    for (i=0;i<FUSE_IOLOG_MAX && fuse_iolog[i].valid;i++) {
 
-		if (fuse_iolog[i].read.count || fuse_iolog[i].write.count) {
-			n = snprintf(ptr, len, "{%d:R(%d,%d,%d),W(%d,%d,%d)}",
-				fuse_iolog[i].pid,
-				fuse_iolog[i].read.bytes,
-				fuse_iolog[i].read.count,
-				fuse_iolog[i].read.us,
-				fuse_iolog[i].write.bytes,
-				fuse_iolog[i].write.count,
-				fuse_iolog[i].write.us);
+        if (fuse_iolog[i].read.count || fuse_iolog[i].write.count) {
+            n=snprintf(ptr, len, "{%d:R(%d,%d,%d),W(%d,%d,%d)}",
+                fuse_iolog[i].pid,
+                fuse_iolog[i].read.bytes,
+                fuse_iolog[i].read.count,
+                fuse_iolog[i].read.us,
+                fuse_iolog[i].write.bytes,
+                fuse_iolog[i].write.count,
+                fuse_iolog[i].write.us);
 
-			len -= n;
-			ptr += n;
+            len -=n;
+            ptr +=n;
 
-			if (len < 0)
-				goto overflow;
-		}
+            if (len<0)
+                goto overflow;
+        }
 
-		if (fuse_iolog[i].misc_type) {
-			n = snprintf(ptr, len, "{%d:%s(%d,%d,%d)}",
-				fuse_iolog[i].pid,
-				fuse_iolog_type2str(fuse_iolog[i].misc_type),
-				fuse_iolog[i].misc.bytes,
-				fuse_iolog[i].misc.count,
-				fuse_iolog[i].misc.us);
-			len -= n;
-			ptr += n;
+        if (fuse_iolog[i].misc_type) {
+            n=snprintf(ptr, len, "{%d:%s(%d,%d,%d)}",
+                fuse_iolog[i].pid,
+                fuse_iolog_type2str(fuse_iolog[i].misc_type),
+                fuse_iolog[i].misc.bytes,
+                fuse_iolog[i].misc.count,
+                fuse_iolog[i].misc.us);
+            len -=n;
+            ptr +=n;
 
-			if (len < 0)
-				goto overflow;
-		}
-	}
+            if (len<0)
+                goto overflow;
+        }
+    }
 
-	if (i > 0)
-		pr_debug("[BLOCK_TAG] FUSEIO %s\n", &fuse_iolog_buf[0]);
+    if (i>0)
+        xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG", "FUSEIO %s\n", buf);
 
-	return ptr - &fuse_iolog_buf[0];
+    return ptr - &buf[0];
 
 overflow:
-	pr_debug("[BLOCK_TAG] FUSEIO log buffer overflow\n");
+    xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG",
+        "FUSEIO log buffer overflow \n");
 
-	return -1;
+    return -1;
 }
 
 void fuse_iolog_proc_clear(void)
 {
-	memset(&fuse_iolog[0], 0, sizeof(struct fuse_proc_info)*FUSE_IOLOG_MAX);
+    memset(&fuse_iolog[0], 0, sizeof(struct fuse_proc_info)*FUSE_IOLOG_MAX);
+    get_monotonic_boottime(&fuse_iolog_time);
 }
 
 inline __u32 fuse_iolog_timeus(struct timespec *t)
 {
-	__u32 _t;
-	long us;
+    __u32 _t;
+    long us;
 
-	us = t->tv_nsec;
-	do_div(us, 1000);
+    us = t->tv_nsec;
+    do_div(us, 1000);
 
-	if (t->tv_sec > 3600)
-		return 0xD693A400; /* 3600000000 */
-	else
-		_t = t->tv_sec * 1000000 + us;
+    if (t->tv_sec > 3600)
+        return 0xD693A400; /* 3600000000 */
+    else
+        _t = t->tv_sec * 1000000 + us;
 
-	if (_t)
-		return _t;
-	else
-		return 1;
+    if (_t)
+        return _t;
+    else
+        return 1;
 }
 
 __u32 fuse_iolog_timeus_diff(struct timespec *start, struct timespec *end)
 {
-	struct timespec diff;
-	fuse_time_diff(start, end, &diff);
-	return fuse_iolog_timeus(&diff);
+    struct timespec diff;
+    fuse_time_diff(start, end, &diff);
+    return fuse_iolog_timeus(&diff);
 }
 
 
 inline int fuse_iolog_proc_update(struct fuse_proc_info *info,
-	__u32 io_bytes, int type, struct timespec *diff)
+    __u32 io_bytes, int type, struct timespec *diff)
 {
-	struct fuse_rw_info *rwi;
-	__u32 _t;
+    struct fuse_rw_info *rwi;
+    __u32 _t;
 
-	_t = fuse_iolog_timeus(diff);
+    _t = fuse_iolog_timeus(diff);
 
-	if (type == FUSE_READ)
-		rwi = &info->read;
-	else if (type == FUSE_WRITE)
-		rwi = &info->write;
-	else {
-		if (info->misc_type == 0)
-			info->misc_type = type;
-		else if (info->misc_type != type) /* misc type mismatch => continue */
-			return -1;
-		rwi = &info->misc;
-	}
+    if (type==FUSE_READ)
+        rwi = &info->read;
+    else if (type == FUSE_WRITE)
+        rwi = &info->write;
+    else {
+        if (info->misc_type==0)
+            info->misc_type=type;
+        else if (info->misc_type!=type) /* misc type mismatch => continue */
+            return -1;
+        rwi = &info->misc;
+    }
 
-	rwi->bytes += io_bytes;
-	rwi->us += _t;
-	rwi->count++;
+    rwi->bytes += io_bytes;
+    rwi->us += _t;
+    rwi->count ++;
 
-	return 0;
+    return 0;
 }
 
 static int fuse_iolog_watch(void *arg)
 {
-	unsigned int timeout;
-	int n;
-	int empty = 0;  /* how many seconds that log is empty */
+    unsigned int timeout;
+    int n;
+    struct timespec curr, diff;
 
-	while (1) {
-		if (kthread_should_stop())
-			break;
+    while (1) {
+        if (kthread_should_stop()) break;
 
-		/* log is empty for last 1 seconds => sleep till next io comming */
-		if (empty > 1) {
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule();
-		} else { /* otherwise, check 1 seconds later */
-			do {
-				set_current_state(TASK_INTERRUPTIBLE);
-				timeout = schedule_timeout(FUSE_IOLOG_LATENCY*HZ);
-			 } while (timeout);
-		}
+        get_monotonic_boottime(&curr);
 
-		mutex_lock(&fuse_iolog_lock);
+        mutex_lock(&fuse_iolog_lock);
+        fuse_time_diff(&fuse_iolog_time, &curr, &diff);
 
-		n = fuse_iolog_print();
+        n=fuse_iolog_print();
 
-		if (n > 0) {
-			fuse_iolog_proc_clear();
-			empty = 0;
-		} else {
-			empty++;
-		}
+        if (n>0)
+            fuse_iolog_proc_clear();
 
-		mutex_unlock(&fuse_iolog_lock);
-	}
+        mutex_unlock(&fuse_iolog_lock);
 
-	return 0;
+        do {
+            set_current_state(TASK_INTERRUPTIBLE);
+            timeout = schedule_timeout(FUSE_IOLOG_LATENCY*HZ);
+         } while(timeout);
+    }
+
+    return 0;
 }
 
 void fuse_iolog_init(void)
 {
-	int ret;
+    int ret;
 
-	mutex_init(&fuse_iolog_lock);
-	mutex_lock(&fuse_iolog_lock);
-	fuse_iolog_proc_clear();
-	mutex_unlock(&fuse_iolog_lock);
+    mutex_init(&fuse_iolog_lock);
+    mutex_lock(&fuse_iolog_lock);
+    fuse_iolog_proc_clear();
+    mutex_unlock(&fuse_iolog_lock);
 
-	fuse_iolog_thread = kthread_create(fuse_iolog_watch, NULL, "fuse_log");
-	if (IS_ERR(fuse_iolog_thread)) {
-		ret = PTR_ERR(fuse_iolog_thread);
-		pr_debug("[BLOCK_TAG] Fail to create fuse_log thread %d\n", ret);
-		fuse_iolog_thread = NULL;
-		goto out;
-	}
+    fuse_iolog_thread=kthread_create(fuse_iolog_watch, NULL, "fuse_log");
+    if (IS_ERR(fuse_iolog_thread)) {
+        ret = PTR_ERR(fuse_iolog_thread);
+        xlog_printk(ANDROID_LOG_DEBUG, "BLOCK_TAG",
+            "Fail to create fuse_log thread %d\n", ret);
+        fuse_iolog_thread = NULL;
+        goto out;
+    }
+    wake_up_process(fuse_iolog_thread);
 out:
-	return;
+    return;
 }
 
 void fuse_iolog_exit(void)
 {
-	kthread_stop(fuse_iolog_thread);
+    kthread_stop(fuse_iolog_thread);
 }
 void fuse_iolog_add(__u32 io_bytes, int type,
-	struct timespec *start,
-	struct timespec *end)
+    struct timespec *start,
+    struct timespec *end)
 {
-	struct fuse_proc_info *info;
-	struct timespec diff;
-	pid_t pid;
-	int i;
-	pid = task_pid_nr(current);
-	fuse_time_diff(start, end, &diff);
+    struct fuse_proc_info *info;
+    struct timespec diff;
+    pid_t pid;
+    int i;
+    pid = task_pid_nr(current);
+    fuse_time_diff(start, end, &diff);
 
-	mutex_lock(&fuse_iolog_lock);
+    mutex_lock(&fuse_iolog_lock);
 
-	for (i = 0; i < FUSE_IOLOG_MAX; i++)   {
-		info = &fuse_iolog[i];
-		if (info->valid) {
-			if (info->pid == pid) {
-				if (fuse_iolog_proc_update(info, io_bytes, type, &diff))
-					continue; /* ops mismatch */
-				else
-					goto out;
-			} else {
-				continue;
-			}
-		} else {
-			info->valid = 1;
-			info->pid = pid;
-			fuse_iolog_proc_update(info, io_bytes, type, &diff);
-			if (i == 0) {  /* this is the first entry, wake up the handler */
-				if (fuse_iolog_thread)
-					wake_up_process(fuse_iolog_thread);
-			}
-			goto out;
-		}
-	}
+    for (i=0;i<FUSE_IOLOG_MAX;i++)   {
+        info=&fuse_iolog[i];
 
-	if (i == FUSE_IOLOG_MAX) {
-		fuse_iolog_print();
-		fuse_iolog_proc_clear();
-		info = &fuse_iolog[0];
-		info->valid = 1;
-		info->pid = pid;
-		fuse_iolog_proc_update(info, io_bytes, type, &diff);
-	}
+        if (info->valid) {
+            if (info->pid == pid) {
+                if (fuse_iolog_proc_update(info, io_bytes, type, &diff)) {
+                    continue; // ops mismatch
+                }
+                else
+                    goto out;
+            }
+            else {
+                continue;
+            }
+        }
+        else {
+            info->valid=1;
+            info->pid=pid;
+            fuse_iolog_proc_update(info, io_bytes, type, &diff);
+            if (i==0)
+                get_monotonic_boottime(&fuse_iolog_time);
+            goto out;
+        }
+    }
+
+    if (i==FUSE_IOLOG_MAX) {
+        fuse_iolog_print();
+        fuse_iolog_proc_clear();
+        info=&fuse_iolog[0];
+        info->valid=1;
+        info->pid=pid;
+        fuse_iolog_proc_update(info, io_bytes, type, &diff);
+    }
 out:
-	mutex_unlock(&fuse_iolog_lock);
+    mutex_unlock(&fuse_iolog_lock);
 }
 
 #endif
@@ -372,7 +369,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 {
 	struct fuse_file *ff;
 
-	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
+	ff = kzalloc(sizeof(struct fuse_file), GFP_KERNEL);
 	if (unlikely(!ff))
 		return NULL;
 
@@ -446,6 +443,7 @@ static void fuse_file_put(struct fuse_file *ff, bool sync)
 		struct fuse_req *req = ff->reserved_req;
 
 		if (sync) {
+			req->force = 1;
 			req->background = 0;
 			fuse_request_send(ff->fc, req);
 			path_put(&req->misc.release.path);
@@ -1311,6 +1309,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 
 		mark_page_accessed(page);
 
+		iov_iter_advance(ii, tmp);
 		if (!tmp) {
 			unlock_page(page);
 			page_cache_release(page);
@@ -1323,7 +1322,6 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		req->page_descs[req->num_pages].length = tmp;
 		req->num_pages++;
 
-		iov_iter_advance(ii, tmp);
 		count += tmp;
 		pos += tmp;
 		offset += tmp;
@@ -2716,6 +2714,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	loff_t i_size;
 	size_t count = iov_length(iov, nr_segs);
 	struct fuse_io_priv *io;
+	bool is_sync = is_sync_kiocb(iocb);
 
 	pos = offset;
 	inode = file->f_mapping->host;
@@ -2751,7 +2750,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
+	if (!is_sync && (offset + count > i_size) && rw == WRITE)
 		io->async = false;
 
 	if (rw == WRITE)
@@ -2763,7 +2762,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
 
 		/* we have a non-extending, async request, so return */
-		if (!is_sync_kiocb(iocb))
+		if (!is_sync)
 			return -EIOCBQUEUED;
 
 		ret = wait_on_sync_kiocb(iocb);

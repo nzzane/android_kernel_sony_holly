@@ -16,7 +16,6 @@
  * -------
  *  Oscar Liu
  *
- * Copyright(C) 2016 Foxconn International Holdings, Ltd. All rights reserved.
  *============================================================================
  *             HISTORY
  * Below this line, this part is controlled by PVCS VM. DO NOT MODIFY!!
@@ -24,10 +23,6 @@
  * $Revision:   1.0  $
  * $Modtime:   11 Aug 2005 10:28:16  $
  * $Log:   //mtkvs01/vmdata/Maui_sw/archives/mcu/hal/peripheral/inc/bmt_chr_setting.h-arc  $
- *
- * 03 04 2015 wy.chuang
- * [ALPS01921641] [L1_merge] for PMIC and charging
- * .
  *------------------------------------------------------------------------------
  * Upper this line, this part is controlled by PVCS VM. DO NOT MODIFY!!
  *============================================================================
@@ -44,42 +39,16 @@
 /*****************************************************************************
  *  Log
  ****************************************************************************/
-// CORE-EL-add_bat_log-00*[
 #define BAT_LOG_CRTI 1
-#define BAT_LOG_WARN 2
-#define BAT_LOG_TRK  3
-#define BAT_LOG_DBG  4
-#define BAT_LOG_INFO 5
-#define BAT_LOG_FULL 6
+#define BAT_LOG_FULL 2
 
-#define battery_xlog_printk(num, msg, ...)\
-do {\
-	if (Enable_BATDRV_LOG >= (int)num)\
-	{\
-		char   buf[200];\
-		char  *s = buf;\
-		\
-		s += snprintf(s, sizeof(buf) - (size_t)(s-buf), "[chg %s %d]:",  __func__, __LINE__);\
-		\
-		snprintf(s, sizeof(buf) - (size_t)(s-buf), msg, ##__VA_ARGS__);\
-		printk(KERN_ERR "%s", buf);\
-	}\
-}while(0)
-// CORE-EL-add_bat_log-00*]
+#define battery_xlog_printk(num, fmt, args...) \
+  do { \
+    if (Enable_BATDRV_LOG >= (int)num) { \
+      pr_notice(fmt, ##args); \
+    } \
+  } while (0)
 
-#define battery_log(num, msg, ...)\
-do {\
-	if (Enable_BATDRV_LOG >= (int)num)\
-	{\
-		char   buf[200];\
-		char  *s = buf;\
-		\
-		s += snprintf(s, sizeof(buf) - (size_t)(s-buf), "[chg %s %d]:",  __func__, __LINE__);\
-		\
-		snprintf(s, sizeof(buf) - (size_t)(s-buf), msg, ##__VA_ARGS__);\
-		printk(KERN_ERR "%s", buf);\
-	}\
-}while(0)
 
 /* ============================================================ */
 /* ENUM */
@@ -504,11 +473,4 @@ extern kal_bool chargin_hw_init_done;
 /* External function */
 /* ============================================================ */
 extern kal_int32 chr_control_interface(CHARGING_CTRL_CMD cmd, void *data);
-extern kal_uint32 upmu_get_reg_value(kal_uint32 reg);
-extern bool mt_usb_is_device(void);
-extern void Charger_Detect_Init(void);
-extern void Charger_Detect_Release(void);
-extern void mt_power_off(void);
-
-extern bool get_usb_current_unlimited(void);
 #endif				/* #ifndef _CHARGING_H */

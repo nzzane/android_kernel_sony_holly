@@ -7,6 +7,10 @@ typedef struct{
     unsigned int queue[2];
 }CCCI_PORT_STATISTICS;
 
+enum {
+    TX = 0,
+    RX,
+};
 
 enum STATISTIC_TYPE{
     NORMAL = 0,

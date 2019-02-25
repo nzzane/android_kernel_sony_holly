@@ -17,8 +17,6 @@
 
 #include "internals.h"
 
-#include "mt_sched_mon.h"
-
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */

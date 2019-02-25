@@ -6,6 +6,7 @@
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 #include <linux/aee.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -40,7 +41,7 @@ static struct thermal_cooling_device *cl_dev_sysrst3;
 static struct thermal_cooling_device *cl_dev_sysrst4;
  */
 
-static int tsallts_debug_log = 1;
+static int tsallts_debug_log = 0;
 static int kernelmode = 0;
 static int g_THERMAL_TRIP[10] = {0,0,0,0,0,0,0,0,0,0};
 static int num_trip=0;
@@ -61,7 +62,7 @@ static char g_bind9[20]={0};
 #define tsallts_dprintk(fmt, args...)   \
 do {                                    \
     if (tsallts_debug_log) {                \
-        pr_notice("Power/ALLTS_Thermal" fmt, ##args); \
+        xlog_printk(ANDROID_LOG_INFO, "Power/ALLTS_Thermal", fmt, ##args); \
     }                                   \
 } while(0)
 

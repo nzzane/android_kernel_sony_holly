@@ -70,9 +70,9 @@ static int batch_update_polling_rate(void)
 	int mindelay =0;
 	
 	//mindelay = obj->dev_list.data_dev[0].delay;
-	for(idx = 0; idx < ID_SENSOR_MAX_HANDLE; idx++)//choose first ID_SENSOR_MAX_HANDLE sensors for different sensor type 
+	for(idx = 0; idx < MAX_ANDROID_SENSOR_NUM; idx++)//choose first MAX_ANDROID_SENSOR_NUM sensors for different sensor type 
 	{
-		if((obj->active_sensor & (0x01<< idx)) && (0 != obj->dev_list.data_dev[idx].maxBatchReportLatencyMs))
+		if((obj->active_sensor & (0x01<< idx)))
 		{
 			mindelay = ((obj->dev_list.data_dev[idx].maxBatchReportLatencyMs < mindelay) || (mindelay == 0)) ? obj->dev_list.data_dev[idx].maxBatchReportLatencyMs:mindelay;
 		}
@@ -92,30 +92,31 @@ static int get_fifo_data(struct batch_context *obj)
 	int i=0;
     int64_t  nt;
     struct timespec time;
+    struct batch_timestamp_info *pt;
 
     time.tv_sec = 0;
     time.tv_nsec = 0;
     get_monotonic_boottime(&time);
     nt = time.tv_sec*1000000000LL+time.tv_nsec;
-    for(i=0;i<=ID_SENSOR_MAX_HANDLE;i++)
+    for(i=0;i<=MAX_ANDROID_SENSOR_NUM;i++)
     {
         obj->timestamp_info[i].num = 1;
         obj->timestamp_info[i].end_t = nt;
     }
     
 	BATCH_LOG("fwq!! get_fifo_data +++++++++	!\n");
-	if((obj->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].flush != NULL) 
-		&& (obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_data != NULL)
-		&& (obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_fifo_status)!=NULL)
+	if((obj->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].flush != NULL) 
+		&& (obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_data != NULL)
+		&& (obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_fifo_status)!=NULL)
 	{
 		mutex_lock(&batch_data_mutex);
-		err = obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_fifo_status(&fifo_len,&fifo_status,0, obj->timestamp_info);
+		err = obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_fifo_status(&fifo_len,&fifo_status,0, obj->timestamp_info);
 		if(-1 == fifo_len)
 		{
 				//we use fifo_status
 				if(1 == fifo_status)
 				{
-					err = obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_data(0, &sensor_data);
+					err = obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_data(0, &sensor_data);
 					if(err)
 					{
 						BATCH_LOG("batch get fifoA data error\n");
@@ -136,7 +137,7 @@ static int get_fifo_data(struct batch_context *obj)
 		mutex_unlock(&batch_data_mutex);
 	}
 		
-	for(idx = 0; idx < ID_SENSOR_MAX_HANDLE; idx++)
+	for(idx = 0; idx < MAX_ANDROID_SENSOR_NUM; idx++)
 	{
 			//BATCH_LOG("get data from sensor (%d) !\n", idx);
 		if((obj->dev_list.ctl_dev[idx].flush == NULL) || (obj->dev_list.data_dev[idx].get_data == NULL))
@@ -219,11 +220,11 @@ static void report_data_once(int handle)
     
 	obj->flush_result = 0;
 	//BATCH_LOG("fwq ++++++++++++++++++\n" );
-	//BATCH_LOG("fwq batch mode  (%x,%x)) !!!!\n",obj->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].flush,
-//		obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_data);
-	if((obj->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].flush != NULL) && (obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_data != NULL))
+	//BATCH_LOG("fwq batch mode  (%x,%x)) !!!!\n",obj->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].flush,
+//		obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_data);
+	if((obj->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].flush != NULL) && (obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_data != NULL))
 	{
-		obj->flush_result = obj->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].flush(handle);
+		obj->flush_result = obj->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].flush(handle);
 		get_fifo_data(obj);
 		report_batch_finish(obj->idev, handle);		
 	}
@@ -294,7 +295,7 @@ static ssize_t batch_store_active(struct device* dev, struct device_attribute *a
         cxt->batch_result = -1;
         return count;
     }
-    else if (ID_SENSOR_MAX_HANDLE <= handle)
+    else if (MAX_ANDROID_SENSOR_NUM <= handle)
     {
         cxt->batch_result = 0;
         return count;
@@ -342,9 +343,9 @@ static ssize_t batch_store_active(struct device* dev, struct device_attribute *a
             mutex_unlock(&batch_hw_mutex);
             return count;
         }
-    }else if(cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch != NULL){
-        //BATCH_LOG("cxt->dev_list.ctl_dev[%d].enable_hw_batch, %d, %d, %d\n",ID_SENSOR_MAX_HANDLE,en,cxt->dev_list.data_dev[handle].samplingPeriodMs, cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs);
-        res = cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,(long long)cxt->dev_list.data_dev[handle].samplingPeriodMs*1000000,(long long)cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs*1000000);
+    }else if(cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch != NULL){
+        //BATCH_LOG("cxt->dev_list.ctl_dev[%d].enable_hw_batch, %d, %d, %d\n",MAX_ANDROID_SENSOR_NUM,en,cxt->dev_list.data_dev[handle].samplingPeriodMs, cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs);
+        res = cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,(long long)cxt->dev_list.data_dev[handle].samplingPeriodMs*1000000,(long long)cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs*1000000);
         if(res < 0)
         {
             cxt->batch_result = -1;
@@ -412,8 +413,6 @@ static ssize_t batch_store_batch(struct device* dev, struct device_attribute *at
     int64_t  nt;
     struct timespec time;
     int en;
-    int normalToBatch = 0;
-    int delayChange = 0;
 
     cxt = batch_context_obj;
     
@@ -429,7 +428,7 @@ static ssize_t batch_store_batch(struct device* dev, struct device_attribute *at
         cxt->batch_result = -1;
         return count;
     }
-    else if (ID_SENSOR_MAX_HANDLE <= handle)
+    else if (MAX_ANDROID_SENSOR_NUM <= handle)
     {
         cxt->batch_result = 0;
         return count;
@@ -449,66 +448,25 @@ static ssize_t batch_store_batch(struct device* dev, struct device_attribute *at
         return count;
     }    
 
-	if((cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch == NULL)&&(cxt->dev_list.ctl_dev[handle].enable_hw_batch == NULL)){
+	if((cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch == NULL)&&(cxt->dev_list.ctl_dev[handle].enable_hw_batch == NULL)){
 		cxt->batch_result = -1;
 		return count;
 	}
 
     mutex_lock(&batch_hw_mutex);
-
-    do_div(maxBatchReportLatencyNs,1000000);
-    do_div(samplingPeriodNs,1000000);
-
-    //Change from normal mode to batch mode, update start time.
-    if (cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs == 0 && maxBatchReportLatencyNs != 0)
-    {
-        normalToBatch = 1;
-    }
-
-    if (cxt->dev_list.data_dev[handle].samplingPeriodMs != samplingPeriodNs)
-    {
-        delayChange = 1;
-    }
-
-    cxt->dev_list.data_dev[handle].samplingPeriodMs = samplingPeriodNs;
-    cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs = maxBatchReportLatencyNs;
-    cxt->dev_list.data_dev[handle].flags = flags;
-
-    if(maxBatchReportLatencyNs == 0){
-        if (cxt->active_sensor & (0x01 << handle)) //flush batch data when change from batch mode to normal mode.
-        {
-            BATCH_LOG("%d from batch to normal\n",handle);
-            report_data_once(handle);
-        }
-    }else if(maxBatchReportLatencyNs != 0){
-        //Update start time only when change from normal mode to batch mode.
-        if (normalToBatch)
-        {
-            time.tv_sec = 0;
-            time.tv_nsec = 0;
-            get_monotonic_boottime(&time);
-            nt = time.tv_sec*1000000000LL+time.tv_nsec;
-            cxt->timestamp_info[handle].start_t = nt;
-        }
-        else if (delayChange)
-        {
-            get_fifo_data(cxt);
-        }
-    }
-    
     en = (cxt->active_sensor & (0x01 << handle))?1:0;
     //BATCH_LOG("en = %d\n", en);
     if(cxt->dev_list.ctl_dev[handle].enable_hw_batch != NULL)
     {
-        res = cxt->dev_list.ctl_dev[handle].enable_hw_batch(handle, en,flags|cxt->force_wake_upon_fifo_full,(long long)samplingPeriodNs*1000000,(long long)maxBatchReportLatencyNs*1000000);
+        res = cxt->dev_list.ctl_dev[handle].enable_hw_batch(handle, en,flags|cxt->force_wake_upon_fifo_full,samplingPeriodNs,maxBatchReportLatencyNs);
         if(res < 0)
         {
             cxt->batch_result = -1;
             mutex_unlock(&batch_hw_mutex);
             return count;
         }
-    }else if(cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch != NULL){
-        res = cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch(handle, en,flags|cxt->force_wake_upon_fifo_full,(long long)samplingPeriodNs*1000000,(long long)maxBatchReportLatencyNs*1000000);
+    }else if(cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch != NULL){
+        res = cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch(handle, en,flags|cxt->force_wake_upon_fifo_full,samplingPeriodNs,maxBatchReportLatencyNs);
         if(res < 0)
         {
             cxt->batch_result = -1;
@@ -516,7 +474,13 @@ static ssize_t batch_store_batch(struct device* dev, struct device_attribute *at
             return count;
         }
     }
+	
+    do_div(maxBatchReportLatencyNs,1000000);
+    do_div(samplingPeriodNs,1000000);
 
+    cxt->dev_list.data_dev[handle].samplingPeriodMs = samplingPeriodNs;
+    cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs = maxBatchReportLatencyNs;
+    cxt->dev_list.data_dev[handle].flags = flags;
     mutex_unlock(&batch_hw_mutex);
 
     delay = batch_update_polling_rate();
@@ -532,6 +496,20 @@ static ssize_t batch_store_batch(struct device* dev, struct device_attribute *at
         cxt->is_polling_run = false;
         del_timer_sync(&cxt->timer);
         cancel_work_sync(&cxt->report);
+    }
+    
+    if(maxBatchReportLatencyNs == 0){
+        if (cxt->active_sensor & (0x01 << handle)) //flush batch data when change from batch mode to normal mode.
+        {
+            BATCH_LOG("%d from batch to normal\n",handle);
+            report_data_once(handle);
+        }
+    }else if(maxBatchReportLatencyNs != 0){
+        time.tv_sec = 0;
+        time.tv_nsec = 0;
+        get_monotonic_boottime(&time);
+        nt = time.tv_sec*1000000000LL+time.tv_nsec;
+        cxt->timestamp_info[handle].start_t = nt;
     }
 	
 	cxt->batch_result = 0;
@@ -564,12 +542,6 @@ static ssize_t batch_store_flush(struct device* dev, struct device_attribute *at
         	BATCH_ERR("invalid format!!\n");
         	return count;
     	}
-
-	if (handle < 0 || ID_SENSOR_MAX_HANDLE < handle) {
-		BATCH_ERR("invalid handle : %d\n", handle);
-		cxt->flush_result = -1;
-		return count;
-	}
 
 	report_data_once(handle);//handle need to use of this function 
 	
@@ -618,8 +590,11 @@ static long batch_unlocked_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 {
     void __user *argp = (void __user*)arg;
     batch_trans_data batch_sensors_data;
+    hwm_sensor_data sensor_data ={0};
     int i;
     int err;
+    int64_t  nt;
+    struct timespec time;
     struct batch_timestamp_info *pt;
     int handle;
 
@@ -642,7 +617,7 @@ static long batch_unlocked_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 
             for (i=0;i<batch_context_obj->numOfDataLeft&&i<batch_sensors_data.numOfDataReturn;i++)
             {
-                err = batch_context_obj->dev_list.data_dev[ID_SENSOR_MAX_HANDLE].get_data(0, &batch_sensors_data.data[i]);
+                err = batch_context_obj->dev_list.data_dev[MAX_ANDROID_SENSOR_NUM].get_data(0, &batch_sensors_data.data[i]);
                 if (err)
                 {
                     BATCH_ERR("BATCH_IO_GET_SENSORS_DATA err = %d\n", err);
@@ -663,11 +638,10 @@ static long batch_unlocked_ioctl(struct file *fp, unsigned int cmd, unsigned lon
                         {
                             do_div(batch_sensors_data.data[i].time, pt->total_count);
                         }
-                        if (batch_sensors_data.data[i].time > (int64_t)batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs*1100000)
+                        if (batch_sensors_data.data[i].time > batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs*1100000)
                         {
-                            batch_sensors_data.data[i].time = pt->end_t - (int64_t)batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs*1100000*(pt->total_count-1);
-                            BATCH_LOG("FIFO wrapper around1, %lld, %lld, %lld\n", (int64_t)batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs, (int64_t)pt->total_count, (int64_t)batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs*1100000*(pt->total_count-1));
-                            BATCH_LOG("FIFO wrapper around2, %lld, %lld, %lld\n", pt->start_t, batch_sensors_data.data[i].time, pt->end_t);
+                            batch_sensors_data.data[i].time = pt->end_t - batch_context_obj->dev_list.data_dev[handle].samplingPeriodMs*1100000*(pt->total_count-1);
+                            BATCH_LOG("FIFO wrapper around, %lld, %lld\n", pt->start_t, batch_sensors_data.data[handle].time);
                         }
                         else
                         {
@@ -807,7 +781,7 @@ int batch_register_data_path(int handle, struct batch_data_path *data)
 		BATCH_ERR("data pointer is null!\n");
 		return -1;
 		}
-	if(handle >= 0 && handle <=(ID_SENSOR_MAX_HANDLE)){
+	if(handle >= 0 && handle <=(MAX_ANDROID_SENSOR_NUM)){
 		cxt ->dev_list.data_dev[handle].get_data = data->get_data;
 		cxt ->dev_list.data_dev[handle].flags = data->flags;
 		cxt ->dev_list.data_dev[handle].get_fifo_status= data->get_fifo_status;
@@ -825,7 +799,7 @@ int batch_register_control_path(int handle, struct batch_control_path *ctl)
 		BATCH_ERR("ctl pointer is null!\n");
 		return -1;
 		}
-	if(handle >= 0 && handle <=(ID_SENSOR_MAX_HANDLE)){
+	if(handle >= 0 && handle <=(MAX_ANDROID_SENSOR_NUM)){
 		cxt ->dev_list.ctl_dev[handle].enable_hw_batch = ctl->enable_hw_batch;
 		cxt ->dev_list.ctl_dev[handle].flush= ctl->flush;
 		return 0;	
@@ -847,7 +821,7 @@ int batch_register_support_info(int handle, int support,int div, int timestamp_s
 			return -1;
 		}
 	}
-	if(handle >= 0 && handle <=(ID_SENSOR_MAX_HANDLE)){
+	if(handle >= 0 && handle <=(MAX_ANDROID_SENSOR_NUM)){
 		cxt ->dev_list.data_dev[handle].is_batch_supported = support;
 		cxt ->dev_list.data_dev[handle].div = div;
 		cxt ->dev_list.data_dev[handle].is_timestamp_supported = timestamp_supported;
@@ -1020,7 +994,7 @@ static int batch_probe(struct platform_device *pdev)
 		goto exit_alloc_input_dev_failed;
 	}
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
     	atomic_set(&(batch_context_obj->early_suspend), 0);
 	batch_context_obj->early_drv.level    = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1,
 	batch_context_obj->early_drv.suspend  = batch_early_suspend,
@@ -1126,7 +1100,7 @@ static int batch_suspend(struct platform_device *dev, pm_message_t state)
 
     mutex_lock(&batch_hw_mutex);
     cxt->force_wake_upon_fifo_full = 0;
-    for (handle=0;handle<=ID_SENSOR_MAX_HANDLE;handle++)
+    for (handle=0;handle<=MAX_ANDROID_SENSOR_NUM;handle++)
     {
         if (cxt->dev_list.data_dev[handle].is_batch_supported)
         {
@@ -1138,8 +1112,8 @@ static int batch_suspend(struct platform_device *dev, pm_message_t state)
                 if(res < 0)
                 {
                 }
-            }else if(cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch != NULL){
-                res = cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,
+            }else if(cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch != NULL){
+                res = cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,
                     (long long)cxt->dev_list.data_dev[handle].samplingPeriodMs*1000000, (long long)cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs*1000000);
                 if(res < 0)
                 {
@@ -1166,7 +1140,7 @@ static int batch_resume(struct platform_device *dev)
 
     mutex_lock(&batch_hw_mutex);
     cxt->force_wake_upon_fifo_full = SENSORS_BATCH_WAKE_UPON_FIFO_FULL;
-    for (handle=0;handle<=ID_SENSOR_MAX_HANDLE;handle++)
+    for (handle=0;handle<=MAX_ANDROID_SENSOR_NUM;handle++)
     {
         if (cxt->dev_list.data_dev[handle].is_batch_supported)
         {
@@ -1178,8 +1152,8 @@ static int batch_resume(struct platform_device *dev)
                 if(res < 0)
                 {
                 }
-            }else if(cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch != NULL){
-                res = cxt->dev_list.ctl_dev[ID_SENSOR_MAX_HANDLE].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,
+            }else if(cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch != NULL){
+                res = cxt->dev_list.ctl_dev[MAX_ANDROID_SENSOR_NUM].enable_hw_batch(handle, en,cxt->dev_list.data_dev[handle].flags|cxt->force_wake_upon_fifo_full,
                     (long long)cxt->dev_list.data_dev[handle].samplingPeriodMs*1000000, (long long)cxt->dev_list.data_dev[handle].maxBatchReportLatencyMs*1000000);
                 if(res < 0)
                 {

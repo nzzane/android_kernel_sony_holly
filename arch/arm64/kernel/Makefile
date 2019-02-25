@@ -1,7 +1,6 @@
 #
 # Makefile for the linux kernel.
 #
-subdir-ccflags-y += -Idrivers/misc/mediatek/mtprof/
 
 CPPFLAGS_vmlinux.lds	:= -DTEXT_OFFSET=$(TEXT_OFFSET)
 AFLAGS_head.o		:= -DTEXT_OFFSET=$(TEXT_OFFSET)
@@ -13,7 +12,7 @@ CFLAGS_REMOVE_return_address.o = -pg
 # Object file lists.
 arm64-obj-y		:= cputable.o debug-monitors.o entry.o irq.o fpsimd.o	\
 			   entry-fpsimd.o process.o ptrace.o setup.o signal.o	\
-			   sys.o stacktrace.o time.o traps.o io.o vdso.o dbgcontrol.o\
+			   sys.o stacktrace.o time.o traps.o io.o vdso.o	\
 			   hyp-stub.o psci.o opcodes.o cpu_ops.o insn.o return_address.o
 
 arm64-obj-$(CONFIG_COMPAT)		+= sys32.o kuser32.o signal32.o	\
@@ -28,10 +27,6 @@ arm64-obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 arm64-obj-$(CONFIG_JUMP_LABEL)		+= jump_label.o
 
 obj-$(CONFIG_SWP_EMULATE)	+= swp_emulate.o
-# CORE-KH-DbgCfgToolPorting-00-a[
-arm64-obj-y += dbgcfgtool.o
-arm64-obj-y += fih_sw_info.o
-# CORE-KH-DbgCfgToolPorting-00-a]
 arm64-obj-$(CONFIG_ARM_CPU_TOPOLOGY)  += topology.o
 arm64-obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-y					+= $(arm64-obj-y) vdso/

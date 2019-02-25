@@ -46,7 +46,7 @@
 #include "mach/mt_spm_idle.h"
 #include "mach/mt_pmic_wrap.h"
 #include "mach/mt_clkmgr.h"
-#include "mt_freqhopping.h"
+#include "mach/mt_freqhopping.h"
 #include "mach/mt_spm.h"
 #include "mach/mt_ptp.h"
 // TODO: disable to avoid build error (Brian)
@@ -159,8 +159,9 @@ extern unsigned int mt_get_cpu_freq(void);
 #ifdef CONFIG_CPU_DVFS_POWER_THROTTLING
 #define PWR_THRO_MODE_LBAT_806MHZ	BIT(0)
 #define PWR_THRO_MODE_BAT_OC_1183MHZ	BIT(1)
-#define PWR_THRO_MODE_BAT_PER_806MHZ	BIT(2)
+#define PWR_THRO_MODE_BAT_PER_1950MHZ	BIT(2)
 
+#define CPU_DVFS_OPPIDX_1950MHZ		0
 #define CPU_DVFS_OPPIDX_1183MHZ		5
 #define CPU_DVFS_OPPIDX_806MHZ		6
 #endif
@@ -168,22 +169,53 @@ extern unsigned int mt_get_cpu_freq(void);
 /*
  * LOG and Test
  */
+#ifndef __KERNEL__ // for CTP
+#define USING_XLOG
+#else
+//#define USING_XLOG
+#endif
+
+#define HEX_FMT "0x%08x"
 #undef TAG
-#define TAG     "[Power/cpufreq] "
+
+#ifdef USING_XLOG
+#include <linux/xlog.h>
+
+#define TAG     "Power/cpufreq"
 
 #define cpufreq_err(fmt, args...)       \
-    pr_err(TAG KERN_CONT "[ERROR]"fmt, ##args)
+    xlog_printk(ANDROID_LOG_ERROR, TAG, "[ERROR]"fmt, ##args)
 #define cpufreq_warn(fmt, args...)      \
-    pr_warn(TAG KERN_CONT "[WARNING]"fmt, ##args)
+    xlog_printk(ANDROID_LOG_WARN, TAG, "[WARNING]"fmt, ##args)
 #define cpufreq_info(fmt, args...)      \
-    pr_warn(TAG KERN_CONT fmt, ##args)
+    xlog_printk(ANDROID_LOG_INFO, TAG, fmt, ##args)
 #define cpufreq_dbg(fmt, args...)       \
-    pr_debug(TAG KERN_CONT fmt, ##args)
+    xlog_printk(ANDROID_LOG_DEBUG, TAG, fmt, ##args)
 #define cpufreq_ver(fmt, args...)       \
     do {                                \
         if (func_lv_mask)               \
-            cpufreq_info(TAG KERN_CONT fmt, ##args);    \
+            xlog_printk(ANDROID_LOG_VERBOSE, TAG, fmt, ##args);  \
     } while (0)
+
+#else   /* USING_XLOG */
+
+#define TAG     "[Power/cpufreq] "
+
+#define cpufreq_err(fmt, args...)       \
+    printk(KERN_ERR TAG KERN_CONT "[ERROR]"fmt, ##args)
+#define cpufreq_warn(fmt, args...)      \
+    printk(KERN_WARNING TAG KERN_CONT "[WARNING]"fmt, ##args)
+#define cpufreq_info(fmt, args...)      \
+    printk(KERN_NOTICE TAG KERN_CONT fmt, ##args)
+#define cpufreq_dbg(fmt, args...)       \
+    printk(KERN_INFO TAG KERN_CONT fmt, ##args)
+#define cpufreq_ver(fmt, args...)       \
+    do {                                \
+        if (func_lv_mask)               \
+            printk(KERN_DEBUG TAG KERN_CONT fmt, ##args);    \
+    } while (0)
+
+#endif  /* USING_XLOG */
 
 #define FUNC_LV_MODULE         BIT(0)  /* module, platform driver interface */
 #define FUNC_LV_CPUFREQ        BIT(1)  /* cpufreq driver interface          */
@@ -1344,7 +1376,7 @@ void mt_cpufreq_restore_default_volt(enum mt_cpu_dvfs_id id)
 
 	// Disable turbo mode since PTPOD is disabled
 	if (p->turbo_mode) {
-		cpufreq_ver("@%s: Turbo mode disabled!\n", __func__);
+		cpufreq_info("@%s: Turbo mode disabled!\n", __func__);
 		p->turbo_mode = 0;
 	}
 
@@ -1848,7 +1880,7 @@ static int set_cur_volt_extbuck(struct mt_cpu_dvfs *p, unsigned int mv) /* volt:
 				ret = -1;
 			}
 
-			udelay(PMIC_SETTLE_TIME(cur_vproc_mv - MAX_DIFF_VSRAM_VPROC, cur_vproc_mv)); // TODO: always fix max gap <- refine it???
+			mdelay(PMIC_SETTLE_TIME(cur_vproc_mv - MAX_DIFF_VSRAM_VPROC, cur_vproc_mv)); // TODO: always fix max gap <- refine it???
 
 			// cpufreq_dbg("@%s(), UP, cur_vsram_mv = %d, cur_vproc_mv = %d, delay = %d\n", __func__, cur_vsram_mv, cur_vproc_mv, PMIC_SETTLE_TIME(cur_vproc_mv - MAX_DIFF_VSRAM_VPROC, cur_vproc_mv));
 		} while (target_vsram_mv > cur_vsram_mv);
@@ -1891,7 +1923,7 @@ static int set_cur_volt_extbuck(struct mt_cpu_dvfs *p, unsigned int mv) /* volt:
 			mt_cpufreq_set_pmic_cmd(PMIC_WRAP_PHASE_NORMAL, IDX_NM_VSRAM_CA7, VOLT_TO_PMIC_VAL(cur_vsram_mv));
 			mt_cpufreq_apply_pmic_cmd(IDX_NM_VSRAM_CA7);
 
-			udelay(PMIC_SETTLE_TIME(cur_vproc_mv + MAX_DIFF_VSRAM_VPROC, cur_vproc_mv)); // TODO: always fix max gap <- refine it???
+			mdelay(PMIC_SETTLE_TIME(cur_vproc_mv + MAX_DIFF_VSRAM_VPROC, cur_vproc_mv)); // TODO: always fix max gap <- refine it???
 
 			// cpufreq_dbg("@%s(), DOWN, cur_vsram_mv = %d, cur_vproc_mv = %d, delay = %d\n", __func__, cur_vsram_mv, cur_vproc_mv, PMIC_SETTLE_TIME(cur_vproc_mv + MAX_DIFF_VSRAM_VPROC, cur_vproc_mv));
 		} while (cur_vproc_mv > mv);
@@ -1948,7 +1980,7 @@ static int _cpufreq_set_locked(struct mt_cpu_dvfs *p, unsigned int cur_khz, unsi
 	volt = _search_available_volt(p, target_khz);
 
 	if (cur_khz != TURBO_MODE_FREQ(mode, target_khz))
-		cpufreq_dbg("@%s(), target_khz = %d (%d), volt = %d (%d), num_online_cpus = %d, cur_khz = %d\n",
+		cpufreq_ver("@%s(), target_khz = %d (%d), volt = %d (%d), num_online_cpus = %d, cur_khz = %d\n",
 			    __func__,
 			    target_khz,
 			    TURBO_MODE_FREQ(mode, target_khz),
@@ -2008,7 +2040,7 @@ static int _cpufreq_set_locked(struct mt_cpu_dvfs *p, unsigned int cur_khz, unsi
 			goto out;
 	}
 
-	cpufreq_ver("@%s(): Vproc = %dmv, Vsram = %dmv, freq = %d KHz\n",
+	cpufreq_dbg("@%s(): Vproc = %dmv, Vsram = %dmv, freq = %d KHz\n",
 		    __func__,
 		    (p->ops->get_cur_volt(p)) / 100,
 		    (get_cur_vsram(p) / 100),
@@ -2266,7 +2298,7 @@ static void _downgrade_freq_check(enum mt_cpu_dvfs_id id)
 					p->downgrade_freq_for_ptpod = true;
 					p->downgrade_freq_counter = 0;
 
-					cpufreq_ver("freq limit, downgrade_freq_for_ptpod = %d\n", p->downgrade_freq_for_ptpod);
+					cpufreq_info("freq limit, downgrade_freq_for_ptpod = %d\n", p->downgrade_freq_for_ptpod);
 
 					policy = cpufreq_cpu_get(p->cpu_id);
 
@@ -2356,7 +2388,10 @@ static int _sync_opp_tbl_idx(struct mt_cpu_dvfs *p)
 	}
 
 	if (i >= 0) {
-		cpufreq_ver("%s freq = %d\n", cpu_dvfs_get_name(p), cpu_dvfs_get_cur_freq(p));
+		cpufreq_info("%s freq = %d\n", cpu_dvfs_get_name(p), cpu_dvfs_get_cur_freq(p));
+
+		// TODO: apply correct voltage???
+
 		ret = 0;
 	} else
 		cpufreq_warn("%s can't find freq = %d\n", cpu_dvfs_get_name(p), freq);
@@ -2625,7 +2660,7 @@ static int setup_power_table(struct mt_cpu_dvfs *p)
 
 	/* sort power table */
 	for (i = p->nr_opp_tbl * possible_cpu; i > 0; i--) {
-		for (j = 1; j < i; j++) {
+		for (j = 1; j <= i; j++) {
 			if (p->power_tbl[j - 1].cpufreq_power < p->power_tbl[j].cpufreq_power) {
 				struct mt_cpu_power_info tmp;
 
@@ -2764,11 +2799,11 @@ static int setup_power_table(struct mt_cpu_dvfs *p)
 	}
 
 	max_power_budget = p->power_tbl[0].cpufreq_power;
-	cpufreq_ver("max_power_budget = %d\n", max_power_budget);
+	cpufreq_info("max_power_budget = %d\n", max_power_budget);
 
 	/* dump power table */
 	for (i = 0; i < p->nr_opp_tbl * possible_cpu; i++) {
-		cpufreq_ver("[%d] = { .cpufreq_khz = %d,\t.cpufreq_ncpu = %d,\t.cpufreq_power = %d }\n",
+		cpufreq_info("[%d] = { .cpufreq_khz = %d,\t.cpufreq_ncpu = %d,\t.cpufreq_power = %d }\n",
 			     i,
 			     p->power_tbl[i].cpufreq_khz,
 			     p->power_tbl[i].cpufreq_ncpu,
@@ -2853,7 +2888,7 @@ void mt_cpufreq_enable_by_ptpod(enum mt_cpu_dvfs_id id)
 	 *  2. Turbo bit
 	 */
 	if (AllowTurboMode) {
-		cpufreq_ver("@%s: Turbo mode enabled!\n", __func__);
+		cpufreq_info("@%s: Turbo mode enabled!\n", __func__);
 		p->turbo_mode = 1;
 	}
 
@@ -2909,7 +2944,7 @@ void mt_cpufreq_thermal_protect(unsigned int limited_power)
 {
 	FUNC_ENTER(FUNC_LV_API);
 
-	cpufreq_ver("%s(): limited_power = %d\n", __func__, limited_power);
+	cpufreq_info("%s(): limited_power = %d\n", __func__, limited_power);
 
 #ifdef CONFIG_CPU_FREQ
 	{
@@ -3079,7 +3114,7 @@ static unsigned int _calc_new_opp_idx(struct mt_cpu_dvfs *p, int new_opp_idx)
 #ifdef CONFIG_CPU_DVFS_RAMP_DOWN
 
 	if (_keep_max_freq(p, cpu_dvfs_get_cur_freq(p), cpu_dvfs_get_freq_by_idx(p, new_opp_idx))) {
-		cpufreq_ver("%s(): ramp down, idx = %d, freq_old = %d, freq_new = %d\n",
+		cpufreq_info("%s(): ramp down, idx = %d, freq_old = %d, freq_new = %d\n",
 			     __func__,
 			     new_opp_idx,
 			     cpu_dvfs_get_cur_freq(p),
@@ -3108,7 +3143,7 @@ static unsigned int _calc_new_opp_idx(struct mt_cpu_dvfs *p, int new_opp_idx)
 
 			if (idx != -1) {
 				new_opp_idx = idx;
-				cpufreq_ver("%s(): downgrade freq, idx = %d\n", __func__, new_opp_idx);
+				cpufreq_info("%s(): downgrade freq, idx = %d\n", __func__, new_opp_idx);
 			}
 		}
 	}
@@ -3120,7 +3155,7 @@ static unsigned int _calc_new_opp_idx(struct mt_cpu_dvfs *p, int new_opp_idx)
 
 	if (idx != -1 && idx != new_opp_idx) {
 		new_opp_idx = idx;
-		cpufreq_ver("%s(): thermal limited freq, idx = %d\n", __func__, new_opp_idx);
+		cpufreq_info("%s(): thermal limited freq, idx = %d\n", __func__, new_opp_idx);
 	}
 
 	/* for early suspend */
@@ -3140,14 +3175,19 @@ static unsigned int _calc_new_opp_idx(struct mt_cpu_dvfs *p, int new_opp_idx)
 
 	if (p->pwr_thro_mode & (PWR_THRO_MODE_BAT_OC_1183MHZ)) {
 		if (new_opp_idx < CPU_DVFS_OPPIDX_1183MHZ)
-			cpufreq_ver("%s(): for power throttling = %d\n", __func__, CPU_DVFS_OPPIDX_1183MHZ);
+			cpufreq_dbg("%s(): for power throttling = %d\n", __func__, CPU_DVFS_OPPIDX_1183MHZ);
 
 		new_opp_idx = (new_opp_idx < CPU_DVFS_OPPIDX_1183MHZ) ? CPU_DVFS_OPPIDX_1183MHZ : new_opp_idx;
-	} else if (p->pwr_thro_mode & (PWR_THRO_MODE_LBAT_806MHZ | PWR_THRO_MODE_BAT_PER_806MHZ)) {
+	} else if (p->pwr_thro_mode & (PWR_THRO_MODE_LBAT_806MHZ)){
 		if (new_opp_idx < CPU_DVFS_OPPIDX_806MHZ)
-			cpufreq_ver("%s(): for power throttling = %d\n", __func__, CPU_DVFS_OPPIDX_806MHZ);
+			cpufreq_dbg("%s(): for power throttling = %d\n", __func__, CPU_DVFS_OPPIDX_806MHZ);
 
 		new_opp_idx = (new_opp_idx < CPU_DVFS_OPPIDX_806MHZ) ? CPU_DVFS_OPPIDX_806MHZ : new_opp_idx;
+	} else if (p->pwr_thro_mode & (PWR_THRO_MODE_BAT_PER_1950MHZ)) {
+		if (new_opp_idx < CPU_DVFS_OPPIDX_1950MHZ)
+			cpufreq_dbg("%s(): for power throttling = %d\n", __func__, CPU_DVFS_OPPIDX_806MHZ);
+
+		new_opp_idx = (new_opp_idx < CPU_DVFS_OPPIDX_1950MHZ) ? CPU_DVFS_OPPIDX_1950MHZ : new_opp_idx;
 	}
 
 #endif
@@ -3169,7 +3209,7 @@ static unsigned int _calc_new_opp_idx(struct mt_cpu_dvfs *p, int new_opp_idx)
 
 		if (idx != -1) {
 			new_opp_idx = idx;
-			cpufreq_ver("%s(): for ptpod init, idx = %d\n", __func__, new_opp_idx);
+			cpufreq_info("%s(): for ptpod init, idx = %d\n", __func__, new_opp_idx);
 		}
 	}
 
@@ -3200,13 +3240,13 @@ static void bat_per_protection_powerlimit(BATTERY_PERCENT_LEVEL level)
 
 		switch (level) {
 		case BATTERY_PERCENT_LEVEL_1:
-			// Trigger CPU Limit to under CA53 x 4 + 806MHz
-			p->pwr_thro_mode |= PWR_THRO_MODE_BAT_PER_806MHZ;
+			// Trigger CPU Limit to under CA53 x 4 + 1950MHz
+			p->pwr_thro_mode |= PWR_THRO_MODE_BAT_PER_1950MHZ;
 			break;
 
 		default:
 			// unlimit cpu and gpu
-			p->pwr_thro_mode &= ~PWR_THRO_MODE_BAT_PER_806MHZ;
+			p->pwr_thro_mode &= ~PWR_THRO_MODE_BAT_PER_1950MHZ;
 			break;
 		}
 
@@ -3219,7 +3259,7 @@ static void bat_per_protection_powerlimit(BATTERY_PERCENT_LEVEL level)
 
 		switch (level) {
 		case BATTERY_PERCENT_LEVEL_1:
-			// Trigger CPU Limit to under CA53 x 4 + 806MHz
+			// Trigger CPU Limit to under CA53 x 4 + 1950MHz
 			hps_set_cpu_num_limit(LIMIT_LOW_BATTERY, 4, 0); // TODO: FIXME
 			break;
 
@@ -4368,7 +4408,7 @@ static ssize_t cpufreq_limited_max_freq_by_user_proc_write(struct file *file, co
 
 		p->limited_max_freq_by_user = limited_max_freq;
 
-		if (cpu_dvfs_is_availiable(p) && (p->limited_max_freq_by_user != 0) && (p->limited_max_freq_by_user < cpu_dvfs_get_cur_freq(p))) {
+		if (cpu_dvfs_is_availiable(p) && (p->limited_max_freq_by_user < cpu_dvfs_get_cur_freq(p))) {
 			struct cpufreq_policy *policy = cpufreq_cpu_get(p->cpu_id);
 
 			if (policy) {

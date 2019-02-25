@@ -708,8 +708,9 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 }
 
 static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
-	unsigned long end, phys_addr_t phys, const struct mem_type *type,
-	bool force_pages)
+				  unsigned long end, phys_addr_t phys,
+				  const struct mem_type *type,
+                                  bool force_pages)
 {
 	pud_t *pud = pud_offset(pgd, addr);
 	unsigned long next;
@@ -1331,6 +1332,7 @@ static void __init map_lowmem(void)
 	struct memblock_region *reg;
 	phys_addr_t start;
 	phys_addr_t end;
+	phys_addr_t limit = 0;
 	struct map_desc map;
 
 	/* Map all the lowmem memory banks. */
@@ -1352,9 +1354,11 @@ static void __init map_lowmem(void)
 		map.length = end - start;
 		map.type = MT_MEMORY;
 
-		if (!(end & ~SECTION_MASK))
-			memblock_set_current_limit(end);
-
+		if (!limit && !(end & ~SECTION_MASK)) {
+			/* take first section-size aligned memblock */
+			limit = end;
+			memblock_set_current_limit(limit);
+		}
                 printk(KERN_ALERT"creating mapping start pa: 0x%08llx @ 0x%08llx "
                         ", end pa: 0x%08llx @ 0x%08llx\n",
                        (unsigned long long)start, (unsigned long long)map.virtual,

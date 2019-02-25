@@ -65,7 +65,7 @@
 #define _MC3XXX_SUPPORT_MTK_NEW_ARCH__
 
 #ifdef _MC3XXX_SUPPORT_MTK_NEW_ARCH__
-#if defined(CONFIG_MTK_SCP_SENSORHUB) && defined(CONFIG_CUSTOM_KERNEL_SENSORHUB)
+#ifdef CUSTOM_KERNEL_SENSORHUB
 #include <SCP_sensorHub.h>
 #endif
 #include <accel.h>

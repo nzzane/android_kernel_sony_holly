@@ -943,7 +943,7 @@ ssize_t mt_gpio_store_pin(struct device* dev, struct device_attribute *attr,
 *******************************************************************************/
 struct mt_gpio_modem_info {
 	char name[40];
-	unsigned long num;
+	int num;
 };
 
 static struct mt_gpio_modem_info mt_gpio_info[]={
@@ -984,16 +984,6 @@ static struct mt_gpio_modem_info mt_gpio_info[]={
 #ifdef GPIO_FDD_BAND_SUPPORT_DETECT_3RD_PIN
 	{"GPIO_FDD_Band_Support_Detection_3",GPIO_FDD_BAND_SUPPORT_DETECT_3RD_PIN},
 #endif
-#ifdef GPIO_FDD_BAND_SUPPORT_DETECT_4TH_PIN
-	{"GPIO_FDD_Band_Support_Detection_4",GPIO_FDD_BAND_SUPPORT_DETECT_4TH_PIN},
-#endif
-#ifdef GPIO_FDD_BAND_SUPPORT_DETECT_5TH_PIN
-	{"GPIO_FDD_Band_Support_Detection_5",GPIO_FDD_BAND_SUPPORT_DETECT_5TH_PIN},
-#endif
-#ifdef GPIO_FDD_BAND_SUPPORT_DETECT_6TH_PIN
-	{"GPIO_FDD_Band_Support_Detection_6",GPIO_FDD_BAND_SUPPORT_DETECT_6TH_PIN},
-#endif
-
 #ifdef GPIO_SIM_SWITCH_CLK_PIN
 	{"GPIO_SIM_SWITCH_CLK",GPIO_SIM_SWITCH_CLK_PIN},
 #endif
@@ -1013,18 +1003,12 @@ int mt_get_md_gpio(char * gpio_name, int len)
 		if (!strncmp (gpio_name, mt_gpio_info[i].name, len))
 		{
 			number = mt_gpio_info[i].num;
-			GPIOMSG("Modern get number=%lu, name:%s\n", mt_gpio_info[i].num, gpio_name);
-			//mt_gpio_pin_decrypt(&number);
-			/* mt_gpio_pin_decrypt(&number); */
-			number = ~(0x80000000) & number;
-			GPIOMSG("Modern get2 number=%lu, name:%s\n", number, gpio_name);
+			GPIOMSG("Modern get number=%d, name:%s\n", mt_gpio_info[i].num, gpio_name);
+			mt_gpio_pin_decrypt(&number);
 			return (number);
 		}
 	}
-	if(gpio_name != NULL)
-		GPIOERR("Modem gpio name can't match!!! %s\n", gpio_name);
-	else
-		GPIOERR("Modem gpio name can't match!!!\n");
+	GPIOERR("Modem gpio name can't match!!!\n");
 	return -1;
 }
 
@@ -1033,7 +1017,7 @@ void mt_get_md_gpio_debug(char * str)
 	if(strcmp(str,"ALL")==0){
 		int i;
 		for(i=0;i<ARRAY_SIZE(mt_gpio_info);i++){
-			GPIOMSG("GPIO number=%lu,%s\n", mt_gpio_info[i].num, mt_gpio_info[i].name);
+			GPIOMSG("GPIO number=%d,%s\n", mt_gpio_info[i].num, mt_gpio_info[i].name);
 		}
 	}else{
 		GPIOMSG("GPIO number=%d,%s\n",mt_get_md_gpio(str,strlen(str)),str);

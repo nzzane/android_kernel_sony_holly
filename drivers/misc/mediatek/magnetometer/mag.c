@@ -2,7 +2,6 @@
 #include "mag.h"
 #include "accel.h"
 
-
 struct mag_context *mag_context_obj = NULL;
 
 static struct mag_init_info* msensor_init_list[MAX_CHOOSE_G_NUM]= {0}; //modified
@@ -20,6 +19,7 @@ static void mag_work_func(struct work_struct *work)
 	int err;	
 	int i;
 	int x,y,z,status;
+	static int flag=0;
 	cxt  = mag_context_obj;
     memset(&sensor_data, 0, sizeof(sensor_data));	
 	time.tv_sec = time.tv_nsec = 0;    
@@ -73,6 +73,11 @@ static void mag_work_func(struct work_struct *work)
 		{
 			
 			err = cxt->mag_dev_data.get_data_o(&x,&y,&z,&status);
+			flag = !flag;
+			if(flag)
+				z++;
+			else
+				z--;
 			if(err)
 	   		{
 		  		MAG_ERR("get %d data fails!!\n" ,i);
@@ -783,13 +788,11 @@ static int mag_input_init(struct mag_context *cxt)
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_MAGEL_Y); 
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_MAGEL_Z);
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_MAGEL_STATUS);
-	input_set_capability(dev, EV_REL, EVENT_TYPE_MAGEL_UPDATE);
 
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_O_X);
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_O_Y);
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_O_Z);
 	input_set_capability(dev, EV_ABS, EVENT_TYPE_O_STATUS);
-	input_set_capability(dev, EV_REL, EVENT_TYPE_O_UPDATE);
 	
 	input_set_abs_params(dev, EVENT_TYPE_MAGEL_X, MAG_VALUE_MIN, MAG_VALUE_MAX, 0, 0);
 	input_set_abs_params(dev, EVENT_TYPE_MAGEL_Y, MAG_VALUE_MIN, MAG_VALUE_MAX, 0, 0);
@@ -923,17 +926,13 @@ static int check_repeat_data(int x, int y, int z)
     return 0;
 }
 
-static int check_abnormal_data(long x, long y, long z, int status)
+static int check_abnormal_data(int x, int y, int z, int status)
 {
     long total;
-	struct mag_context *cxt = mag_context_obj;
-
-    //total = (x*x + y*y + z*z)/16;
-	total = (x*x + y*y + z*z)/(cxt->mag_dev_data.div_m * cxt->mag_dev_data.div_m);
-
+    total = (x*x + y*y + z*z)/16;
     if ((total <100) || (total >10000)) {
         if (count %10 == 0) {
-             MAG_ERR("mag sensor abnormal data: x=%ld,y=%ld,z=%ld, status=%d \n",x,y,z,status);
+             MAG_ERR("mag sensor abnormal data: x=%d,y=%d,z=%d, status=%d \n",x,y,z,status);
         }
         count++;
         if (count >1000)
@@ -946,7 +945,7 @@ int mag_data_report(MAG_TYPE type,int x, int y, int z, int status)
 	//MAG_LOG("update!valus: %d, %d, %d, %d\n" , x, y, z, status);
     struct mag_context *cxt = NULL;
     check_repeat_data(x,y,z);
-    check_abnormal_data((long)x,(long)y,(long)z,status);
+    check_abnormal_data(x,y,z,status);
 	//int err =0;
 	cxt = mag_context_obj;
 	if(MAGNETIC==type)
@@ -955,7 +954,6 @@ int mag_data_report(MAG_TYPE type,int x, int y, int z, int status)
 		input_report_abs(cxt->idev, EVENT_TYPE_MAGEL_X, x);
 	    input_report_abs(cxt->idev, EVENT_TYPE_MAGEL_Y, y);
 	    input_report_abs(cxt->idev, EVENT_TYPE_MAGEL_Z, z);
-	    input_report_rel(cxt->idev, EVENT_TYPE_MAGEL_UPDATE, 1);
 		input_sync(cxt->idev);  	
 	}
 	if(ORIENTATION==type)
@@ -964,7 +962,6 @@ int mag_data_report(MAG_TYPE type,int x, int y, int z, int status)
 		input_report_abs(cxt->idev, EVENT_TYPE_O_X, x);
 	  	input_report_abs(cxt->idev, EVENT_TYPE_O_Y, y);
 	   	input_report_abs(cxt->idev, EVENT_TYPE_O_Z, z);
-	   	input_report_rel(cxt->idev, EVENT_TYPE_O_UPDATE, 1);
 		input_sync(cxt->idev); 
 	}
 
@@ -1005,7 +1002,7 @@ static int mag_probe(struct platform_device *pdev)
 		goto exit_alloc_input_dev_failed;
 	}
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
     atomic_set(&(mag_context_obj->early_suspend), 0);
 	mag_context_obj->early_drv.level    = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1,
 	mag_context_obj->early_drv.suspend  = mag_early_suspend,

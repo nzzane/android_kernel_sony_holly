@@ -1,4 +1,4 @@
-#ifdef HDMI_MT8193_SUPPORT
+#ifdef CONFIG_MTK_MT8193_HDMI_SUPPORT
 
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -216,36 +216,36 @@ void vShowEdidRawData(void)
 	MT8193_EDID_FUNC();
 
 	for (bTemp = 0; bTemp < 2; bTemp++) {
-		hdmi_print("===================================================================\n");
-		hdmi_print("   EDID Block Number=#%d\n", bTemp);
-		hdmi_print("   | 00  01  02  03  04  05  06  07  08  09  0a  0b  0c  0d  0e  0f\n");
-		hdmi_print("===================================================================\n");
+		pr_debug("===================================================================\n");
+		pr_debug("   EDID Block Number=#%d\n", bTemp);
+		pr_debug("   | 00  01  02  03  04  05  06  07  08  09  0a  0b  0c  0d  0e  0f\n");
+		pr_debug("===================================================================\n");
 		j = bTemp * EDID_BLOCK_LEN;
 		for (i = 0; i < 8; i++) {
 			if (((i * 16) + j) < 0x10)
-				hdmi_print("0%x:  ", (i * 16) + j);
+				pr_debug("0%x:  ", (i * 16) + j);
 			else
-				hdmi_print("%x:  ", (i * 16) + j);
+				pr_debug("%x:  ", (i * 16) + j);
 
 			for (k = 0; k < 16; k++) {
 				if (k == 15) {
 					if ((j + (i * 16 + k)) < EDID_SIZE)	/* for Buffer overflow error */
 					{
 						if (_bEdidData[j + (i * 16 + k)] > 0x0f)
-							hdmi_print("%2x\n",
+							pr_debug("%2x\n",
 								 _bEdidData[j + (i * 16 + k)]);
 						else
-							hdmi_print("0%x\n",
+							pr_debug("0%x\n",
 								 _bEdidData[j + (i * 16 + k)]);
 					}
 				} else {
 					if ((j + (i * 16 + k)) < EDID_SIZE)	/* for Buffer overflow error */
 					{
 						if (_bEdidData[j + (i * 16 + k)] > 0x0f)
-							hdmi_print("%2x  ",
+							pr_debug("%2x  ",
 								 _bEdidData[j + (i * 16 + k)]);
 						else
-							hdmi_print("0%x  ",
+							pr_debug("0%x  ",
 								 _bEdidData[j + (i * 16 + k)]);
 					}
 				}
@@ -255,7 +255,7 @@ void vShowEdidRawData(void)
 		}
 
 	}
-	hdmi_print("===================================================================\n");
+	pr_debug("===================================================================\n");
 
 }
 
@@ -1349,7 +1349,7 @@ void mt8193_checkedid(u8 i1noedid)
 			if (fgParserEDID(&_bEdidData[0]) == TRUE) {
 				vSetSharedInfo(SI_EDID_PARSING_RESULT, TRUE);
 				_HdmiSinkAvCap.b_sink_edid_ready = TRUE;
-                                                        HDMI_DEF_LOG("[hdmi][edid]parser ok\n");
+
 				break;
 			}
 
@@ -1387,14 +1387,6 @@ void mt8193_checkedid(u8 i1noedid)
 		vSetNoEdidChkInfo();
 	}
 
-        if (mt8193_log_on&hdmiedidlog)
-        {
-            vShowEdidRawData();
-            vShowEdidInformation();
-        }
-        else
-                hdmi_show_def_info();
-
 }
 
 u8 vCheckPcmBitSize(u8 ui1ChNumInx)
@@ -1424,19 +1416,19 @@ void vShowEdidInformation(void)
 	u8 bInx = 0;
 	MT8193_EDID_FUNC();
 
-	hdmi_print("[HDMI]EDID ver:%d/rev:%d\n", _HdmiSinkAvCap.ui1_Edid_Version,
+	pr_debug("[HDMI]EDID ver:%d/rev:%d\n", _HdmiSinkAvCap.ui1_Edid_Version,
 		 _HdmiSinkAvCap.ui1_Edid_Revision);
-	hdmi_print("[HDMI]EDID Extend Rev:%d \n", _HdmiSinkAvCap.ui1_ExtEdid_Revision);
+	pr_debug("[HDMI]EDID Extend Rev:%d \n", _HdmiSinkAvCap.ui1_ExtEdid_Revision);
 	if (_HdmiSinkAvCap.b_sink_support_hdmi_mode) {
-		hdmi_print("[HDMI]SINK Device is HDMI\n");
+		pr_debug("[HDMI]SINK Device is HDMI\n");
 	} else {
-		hdmi_print("[HDMI]SINK Device is DVI\n");
+		pr_debug("[HDMI]SINK Device is DVI\n");
 	}
 
 	if (_HdmiSinkAvCap.b_sink_support_hdmi_mode)
-		hdmi_print("[HDMI]CEC ADDRESS:%x \n", _HdmiSinkAvCap.ui2_sink_cec_address);
+		pr_debug("[HDMI]CEC ADDRESS:%x \n", _HdmiSinkAvCap.ui2_sink_cec_address);
 
-	hdmi_print("[HDMI]max clock limit : %d\n", _HdmiSinkAvCap.ui1_sink_max_tmds_clock);
+	pr_debug("[HDMI]max clock limit : %d\n", _HdmiSinkAvCap.ui1_sink_max_tmds_clock);
 
 	u4Res = (_HdmiSinkAvCap.ui4_sink_cea_ntsc_resolution |
 		 _HdmiSinkAvCap.ui4_sink_dtd_ntsc_resolution |
@@ -1444,160 +1436,160 @@ void vShowEdidInformation(void)
 		 _HdmiSinkAvCap.ui4_sink_dtd_pal_resolution);
 
 	if (u4Res & SINK_480I)
-		hdmi_print("[HDMI]SUPPORT 1440x480I 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 1440x480I 59.94hz\n");
 	if (u4Res & SINK_480I_1440)
-		hdmi_print("[HDMI]SUPPORT 2880x480I 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 2880x480I 59.94hz\n");
 	if (u4Res & SINK_480P)
-		hdmi_print("[HDMI]SUPPORT 720x480P 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 720x480P 59.94hz\n");
 	if (u4Res & SINK_480P_1440)
-		hdmi_print("[HDMI]SUPPORT 1440x480P 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 1440x480P 59.94hz\n");
 	if (u4Res & SINK_480P_2880)
-		hdmi_print("[HDMI]SUPPORT 2880x480P 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 2880x480P 59.94hz\n");
 	if (u4Res & SINK_720P60)
-		hdmi_print("[HDMI]SUPPORT 1280x720P 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 1280x720P 59.94hz\n");
 	if (u4Res & SINK_1080I60)
-		hdmi_print("[HDMI]SUPPORT 1920x1080I 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080I 59.94hz\n");
 	if (u4Res & SINK_1080P60)
-		hdmi_print("[HDMI]SUPPORT 1920x1080P 59.94hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080P 59.94hz\n");
 
 	if (u4Res & SINK_576I)
-		hdmi_print("[HDMI]SUPPORT 1440x576I 50hz\n");
+		pr_debug("[HDMI]SUPPORT 1440x576I 50hz\n");
 	if (u4Res & SINK_576I_1440)
-		hdmi_print("[HDMI]SUPPORT 2880x576I 50hz\n");
+		pr_debug("[HDMI]SUPPORT 2880x576I 50hz\n");
 	if (u4Res & SINK_576P)
-		hdmi_print("[HDMI]SUPPORT 720x576P 50hz\n");
+		pr_debug("[HDMI]SUPPORT 720x576P 50hz\n");
 	if (u4Res & SINK_576P_1440)
-		hdmi_print("[HDMI]SUPPORT 1440x576P 50hz\n");
+		pr_debug("[HDMI]SUPPORT 1440x576P 50hz\n");
 	if (u4Res & SINK_576P_2880)
-		hdmi_print("[HDMI]SUPPORT 2880x576P 50hz\n");
+		pr_debug("[HDMI]SUPPORT 2880x576P 50hz\n");
 	if (u4Res & SINK_720P50)
-		hdmi_print("[HDMI]SUPPORT 1280x720P 50hz\n");
+		pr_debug("[HDMI]SUPPORT 1280x720P 50hz\n");
 	if (u4Res & SINK_1080I50)
-		hdmi_print("[HDMI]SUPPORT 1920x1080I 50hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080I 50hz\n");
 	if (u4Res & SINK_1080P50)
-		hdmi_print("[HDMI]SUPPORT 1920x1080P 50hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080P 50hz\n");
 	if (u4Res & SINK_1080P30)
-		hdmi_print("[HDMI]SUPPORT 1920x1080P 30hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080P 30hz\n");
 	if (u4Res & SINK_1080P24)
-		hdmi_print("[HDMI]SUPPORT 1920x1080P 24hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080P 24hz\n");
 	if (u4Res & SINK_1080P25)
-		hdmi_print("[HDMI]SUPPORT 1920x1080P 25hz\n");
+		pr_debug("[HDMI]SUPPORT 1920x1080P 25hz\n");
 
 	u4Res =
 	    (_HdmiSinkAvCap.ui4_sink_native_ntsc_resolution | _HdmiSinkAvCap.
 	     ui4_sink_native_pal_resolution);
-	hdmi_print("[HDMI]NTSC Native =%x\n", _HdmiSinkAvCap.ui4_sink_native_ntsc_resolution);
-	hdmi_print("[HDMI]PAL Native =%x\n", _HdmiSinkAvCap.ui4_sink_native_pal_resolution);
+	pr_debug("[HDMI]NTSC Native =%x\n", _HdmiSinkAvCap.ui4_sink_native_ntsc_resolution);
+	pr_debug("[HDMI]PAL Native =%x\n", _HdmiSinkAvCap.ui4_sink_native_pal_resolution);
 	if (u4Res & SINK_480I)
-		hdmi_print("[HDMI]Native resolution is 1440x480I 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 1440x480I 59.94hz\n");
 	if (u4Res & SINK_480I_1440)
-		hdmi_print("[HDMI]Native resolution is 2880x480I 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 2880x480I 59.94hz\n");
 	if (u4Res & SINK_480P)
-		hdmi_print("[HDMI]Native resolution is 720x480P 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 720x480P 59.94hz\n");
 	if (u4Res & SINK_480P_1440)
-		hdmi_print("[HDMI]Native resolution is 1440x480P 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 1440x480P 59.94hz\n");
 	if (u4Res & SINK_480P_2880)
-		hdmi_print("[HDMI]Native resolution is 2880x480P 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 2880x480P 59.94hz\n");
 	if (u4Res & SINK_720P60)
-		hdmi_print("[HDMI]Native resolution is 1280x720P 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 1280x720P 59.94hz\n");
 	if (u4Res & SINK_1080I60)
-		hdmi_print("[HDMI]Native resolution is 1920x1080I 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080I 59.94hz\n");
 	if (u4Res & SINK_1080P60)
-		hdmi_print("[HDMI]Native resolution is 1920x1080P 59.94hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080P 59.94hz\n");
 	if (u4Res & SINK_576I)
-		hdmi_print("[HDMI]Native resolution is 1440x576I 50hz\n");
+		pr_debug("[HDMI]Native resolution is 1440x576I 50hz\n");
 	if (u4Res & SINK_576I_1440)
-		hdmi_print("[HDMI]Native resolution is 2880x576I 50hz\n");
+		pr_debug("[HDMI]Native resolution is 2880x576I 50hz\n");
 	if (u4Res & SINK_576P)
-		hdmi_print("[HDMI]Native resolution is 720x576P 50hz\n");
+		pr_debug("[HDMI]Native resolution is 720x576P 50hz\n");
 	if (u4Res & SINK_576P_1440)
-		hdmi_print("[HDMI]Native resolution is 1440x576P 50hz\n");
+		pr_debug("[HDMI]Native resolution is 1440x576P 50hz\n");
 	if (u4Res & SINK_576P_2880)
-		hdmi_print("[HDMI]Native resolution is 2880x576P 50hz\n");
+		pr_debug("[HDMI]Native resolution is 2880x576P 50hz\n");
 	if (u4Res & SINK_720P50)
-		hdmi_print("[HDMI]Native resolution is 1280x720P 50hz\n");
+		pr_debug("[HDMI]Native resolution is 1280x720P 50hz\n");
 	if (u4Res & SINK_1080I50)
-		hdmi_print("[HDMI]Native resolution is 1920x1080I 50hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080I 50hz\n");
 	if (u4Res & SINK_1080P50)
-		hdmi_print("[HDMI]Native resolution is 1920x1080P 50hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080P 50hz\n");
 	if (u4Res & SINK_1080P30)
-		hdmi_print("[HDMI]Native resolution is 1920x1080P 30hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080P 30hz\n");
 	if (u4Res & SINK_1080P24)
-		hdmi_print("[HDMI]Native resolution is 1920x1080P 24hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080P 24hz\n");
 	if (u4Res & SINK_1080P25)
-		hdmi_print("[HDMI]Native resolution is 1920x1080P 25hz\n");
+		pr_debug("[HDMI]Native resolution is 1920x1080P 25hz\n");
 
 
-	hdmi_print("[HDMI]SUPPORT RGB\n");
+	pr_debug("[HDMI]SUPPORT RGB\n");
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_YCBCR_444) {
-		hdmi_print("[HDMI]SUPPORT YCBCR 444\n");
+		pr_debug("[HDMI]SUPPORT YCBCR 444\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_YCBCR_422) {
-		hdmi_print("[HDMI]SUPPORT YCBCR 422\n");
+		pr_debug("[HDMI]SUPPORT YCBCR 422\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_XV_YCC709) {
-		hdmi_print("[HDMI]SUPPORT xvYCC 709\n");
+		pr_debug("[HDMI]SUPPORT xvYCC 709\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_XV_YCC601) {
-		hdmi_print("[HDMI]SUPPORT xvYCC 601\n");
+		pr_debug("[HDMI]SUPPORT xvYCC 601\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_METADATA0) {
-		hdmi_print("[HDMI]SUPPORT metadata P0\n");
+		pr_debug("[HDMI]SUPPORT metadata P0\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_METADATA1) {
-		hdmi_print("[HDMI]SUPPORT metadata P1\n");
+		pr_debug("[HDMI]SUPPORT metadata P1\n");
 	}
 	if (_HdmiSinkAvCap.ui2_sink_colorimetry & SINK_METADATA2) {
-		hdmi_print("[HDMI]SUPPORT metadata P2\n");
+		pr_debug("[HDMI]SUPPORT metadata P2\n");
 	}
 
 
 	if (_HdmiSinkAvCap.e_sink_ycbcr_color_bit & HDMI_SINK_DEEP_COLOR_10_BIT)
-		hdmi_print("[HDMI]SUPPORT YCBCR 30 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT YCBCR 30 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_ycbcr_color_bit & HDMI_SINK_DEEP_COLOR_12_BIT)
-		hdmi_print("[HDMI]SUPPORT YCBCR 36 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT YCBCR 36 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_ycbcr_color_bit & HDMI_SINK_DEEP_COLOR_16_BIT)
-		hdmi_print("[HDMI]SUPPORT YCBCR 48 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT YCBCR 48 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_ycbcr_color_bit == HDMI_SINK_NO_DEEP_COLOR)
-		hdmi_print("[HDMI]Not SUPPORT YCBCR Deep Color\n");
+		pr_debug("[HDMI]Not SUPPORT YCBCR Deep Color\n");
 
 	if (_HdmiSinkAvCap.e_sink_rgb_color_bit & HDMI_SINK_DEEP_COLOR_10_BIT)
-		hdmi_print("[HDMI]SUPPORT RGB 30 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT RGB 30 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_rgb_color_bit & HDMI_SINK_DEEP_COLOR_12_BIT)
-		hdmi_print("[HDMI]SUPPORT RGB 36 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT RGB 36 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_rgb_color_bit & HDMI_SINK_DEEP_COLOR_16_BIT)
-		hdmi_print("[HDMI]SUPPORT RGB 48 Bits Deep Color\n");
+		pr_debug("[HDMI]SUPPORT RGB 48 Bits Deep Color\n");
 	if (_HdmiSinkAvCap.e_sink_rgb_color_bit == HDMI_SINK_NO_DEEP_COLOR)
-		hdmi_print("[HDMI]Not SUPPORT RGB Deep Color\n");
+		pr_debug("[HDMI]Not SUPPORT RGB Deep Color\n");
 
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_LPCM)
-		hdmi_print("[HDMI]SUPPORT LPCM\n");
+		pr_debug("[HDMI]SUPPORT LPCM\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_AC3)
-		hdmi_print("[HDMI]SUPPORT AC3 Decode\n");
+		pr_debug("[HDMI]SUPPORT AC3 Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_MPEG1)
-		hdmi_print("[HDMI]SUPPORT MPEG1 Decode\n");
+		pr_debug("[HDMI]SUPPORT MPEG1 Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_MP3)
-		hdmi_print("[HDMI]SUPPORT AC3 Decode\n");
+		pr_debug("[HDMI]SUPPORT AC3 Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_MPEG2)
-		hdmi_print("[HDMI]SUPPORT MPEG2 Decode\n");
+		pr_debug("[HDMI]SUPPORT MPEG2 Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_AAC)
-		hdmi_print("[HDMI]SUPPORT AAC Decode\n");
+		pr_debug("[HDMI]SUPPORT AAC Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_DTS)
-		hdmi_print("[HDMI]SUPPORT DTS Decode\n");
+		pr_debug("[HDMI]SUPPORT DTS Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_ATRAC)
-		hdmi_print("[HDMI]SUPPORT ATRAC Decode\n");
+		pr_debug("[HDMI]SUPPORT ATRAC Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_DSD)
-		hdmi_print("[HDMI]SUPPORT SACD DSD Decode\n");
+		pr_debug("[HDMI]SUPPORT SACD DSD Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_DOLBY_PLUS)
-		hdmi_print("[HDMI]SUPPORT Dolby Plus Decode\n");
+		pr_debug("[HDMI]SUPPORT Dolby Plus Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_DTS_HD)
-		hdmi_print("[HDMI]SUPPORT DTS HD Decode\n");
+		pr_debug("[HDMI]SUPPORT DTS HD Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_MAT_MLP)
-		hdmi_print("[HDMI]SUPPORT MAT MLP Decode\n");
+		pr_debug("[HDMI]SUPPORT MAT MLP Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_DST)
-		hdmi_print("[HDMI]SUPPORT SACD DST Decode\n");
+		pr_debug("[HDMI]SUPPORT SACD DST Decode\n");
 	if (_HdmiSinkAvCap.ui2_sink_aud_dec & HDMI_SINK_AUDIO_DEC_WMA)
-		hdmi_print("[HDMI]SUPPORT  WMA Decode\n");
+		pr_debug("[HDMI]SUPPORT  WMA Decode\n");
 
 	if (_HdmiSinkAvCap.ui1_sink_pcm_ch_sampling[0] != 0) {
 
@@ -1610,7 +1602,7 @@ void vShowEdidInformation(void)
 				memcpy(&cDstStr[0 + bInx * 7], &_cFsStr[bInx][0], 7);
 			}
 		}
-		hdmi_print("[HDMI]SUPPORT PCM Max 2CH, Fs is: %s\n", &cDstStr[0]);
+		pr_debug("[HDMI]SUPPORT PCM Max 2CH, Fs is: %s\n", &cDstStr[0]);
 
 	}
 
@@ -1624,7 +1616,7 @@ void vShowEdidInformation(void)
 				memcpy(&cDstStr[0 + bInx * 7], &_cFsStr[bInx][0], 7);
 			}
 		}
-		hdmi_print("[HDMI]SUPPORT PCM Max 6CH Fs is: %s\n", &cDstStr[0]);
+		pr_debug("[HDMI]SUPPORT PCM Max 6CH Fs is: %s\n", &cDstStr[0]);
 
 	}
 
@@ -1638,7 +1630,7 @@ void vShowEdidInformation(void)
 				memcpy(&cDstStr[0 + bInx * 7], &_cFsStr[bInx][0], 7);
 			}
 		}
-		hdmi_print("[HDMI]SUPPORT PCM Max 7CH Fs is: %s\n", &cDstStr[0]);
+		pr_debug("[HDMI]SUPPORT PCM Max 7CH Fs is: %s\n", &cDstStr[0]);
 
 	}
 
@@ -1652,78 +1644,57 @@ void vShowEdidInformation(void)
 				memcpy(&cDstStr[0 + bInx * 7], &_cFsStr[bInx][0], 7);
 			}
 		}
-		hdmi_print("[HDMI]SUPPORT PCM Max 8CH, FS is: %s\n", &cDstStr[0]);
+		pr_debug("[HDMI]SUPPORT PCM Max 8CH, FS is: %s\n", &cDstStr[0]);
 
 	}
 
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_FL_FR)
-		hdmi_print("[HDMI]Speaker FL/FR allocated\n");
+		pr_debug("[HDMI]Speaker FL/FR allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_LFE)
-		hdmi_print("[HDMI]Speaker LFE allocated\n");
+		pr_debug("[HDMI]Speaker LFE allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_FC)
-		hdmi_print("[HDMI]Speaker FC allocated\n");
+		pr_debug("[HDMI]Speaker FC allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_RL_RR)
-		hdmi_print("[HDMI]Speaker RL/RR allocated\n");
+		pr_debug("[HDMI]Speaker RL/RR allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_RC)
-		hdmi_print("[HDMI]Speaker RC allocated\n");
+		pr_debug("[HDMI]Speaker RC allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_FLC_FRC)
-		hdmi_print("[HDMI]Speaker FLC/FRC allocated\n");
+		pr_debug("[HDMI]Speaker FLC/FRC allocated\n");
 	if (_HdmiSinkAvCap.ui1_sink_spk_allocation & SINK_AUDIO_RLC_RRC)
-		hdmi_print("[HDMI]Speaker RLC/RRC allocated\n");
+		pr_debug("[HDMI]Speaker RLC/RRC allocated\n");
 
-	hdmi_print("[HDMI]HDMI edid support content type =%x\n", _HdmiSinkAvCap.ui1_sink_content_cnc);
-	hdmi_print("[HDMI]Lip Sync Progressive audio latency = %d\n",
+	pr_debug("[HDMI]HDMI edid support content type =%x\n", _HdmiSinkAvCap.ui1_sink_content_cnc);
+	pr_debug("[HDMI]Lip Sync Progressive audio latency = %d\n",
 		 _HdmiSinkAvCap.ui1_sink_p_audio_latency);
-	hdmi_print("[HDMI]Lip Sync Progressive video latency = %d\n",
+	pr_debug("[HDMI]Lip Sync Progressive video latency = %d\n",
 		 _HdmiSinkAvCap.ui1_sink_p_video_latency);
 	if (_HdmiSinkAvCap.ui1_sink_i_latency_present) {
-		hdmi_print("[HDMI]Lip Sync Interlace audio latency = %d\n",
+		pr_debug("[HDMI]Lip Sync Interlace audio latency = %d\n",
 			 _HdmiSinkAvCap.ui1_sink_i_audio_latency);
-		hdmi_print("[HDMI]Lip Sync Interlace video latency = %d\n",
+		pr_debug("[HDMI]Lip Sync Interlace video latency = %d\n",
 			 _HdmiSinkAvCap.ui1_sink_i_video_latency);
 	}
 
 	if (_HdmiSinkAvCap.ui1_sink_support_ai == 1)
-		hdmi_print("[HDMI]Support AI\n");
+		pr_debug("[HDMI]Support AI\n");
 	else
-		hdmi_print("[HDMI]Not Support AI\n");
+		pr_debug("[HDMI]Not Support AI\n");
 
-	hdmi_print("[HDMI]Monitor Max horizontal size = %d\n",
+	pr_debug("[HDMI]Monitor Max horizontal size = %d\n",
 		 _HdmiSinkAvCap.ui1_Display_Horizontal_Size);
-	hdmi_print("[HDMI]Monitor Max vertical size = %d\n",
+	pr_debug("[HDMI]Monitor Max vertical size = %d\n",
 		 _HdmiSinkAvCap.ui1_Display_Vertical_Size);
 
 
 	if (_HdmiSinkAvCap.b_sink_hdmi_video_present == TRUE)
-		hdmi_print("[HDMI]HDMI_Video_Present\n");
+		pr_debug("[HDMI]HDMI_Video_Present\n");
 	else
-		hdmi_print("[HDMI]No HDMI_Video_Present\n");
+		pr_debug("[HDMI]No HDMI_Video_Present\n");
 
 	if (_HdmiSinkAvCap.b_sink_3D_present == TRUE)
-		hdmi_print("[HDMI]3D_present\n");
+		pr_debug("[HDMI]3D_present\n");
 	else
-		hdmi_print("[HDMI]No 3D_present\n");
-
-}
-void hdmi_show_def_info(void)
-{
-    unsigned int u4Res=0;
-
-    if(_HdmiSinkAvCap.b_sink_support_hdmi_mode)
-    {
-      HDMI_DEF_LOG("[hdmi][edid]is hdmi\n");
-    }
-    else
-    {
-      HDMI_DEF_LOG("[hdmi][edid]is dvi\n");
-    }
-
-    u4Res= (_HdmiSinkAvCap.ui4_sink_cea_ntsc_resolution| \
-           _HdmiSinkAvCap.ui4_sink_dtd_ntsc_resolution| \
-           _HdmiSinkAvCap.ui4_sink_cea_pal_resolution| \
-           _HdmiSinkAvCap.ui4_sink_dtd_pal_resolution);
-
-    HDMI_DEF_LOG("[hdmi][edid]res:%x,aud_dec:%x,pa:%x\n",u4Res,_HdmiSinkAvCap.ui2_sink_aud_dec,_HdmiSinkAvCap.ui2_sink_cec_address);
+		pr_debug("[HDMI]No 3D_present\n");
 
 }
 
@@ -1732,9 +1703,11 @@ void mt8193_AppGetEdidInfo(HDMI_EDID_INFO_T *pv_get_info)
 	MT8193_EDID_FUNC();
 
 	pv_get_info->ui4_ntsc_resolution =
-	    (_HdmiSinkAvCap.ui4_sink_cea_ntsc_resolution | _HdmiSinkAvCap.ui4_sink_dtd_ntsc_resolution);
+	    (_HdmiSinkAvCap.ui4_sink_cea_ntsc_resolution | _HdmiSinkAvCap.
+	     ui4_sink_dtd_ntsc_resolution);
 	pv_get_info->ui4_pal_resolution =
-	    (_HdmiSinkAvCap.ui4_sink_cea_pal_resolution | _HdmiSinkAvCap.ui4_sink_dtd_pal_resolution);
+	    (_HdmiSinkAvCap.ui4_sink_cea_pal_resolution | _HdmiSinkAvCap.
+	     ui4_sink_dtd_pal_resolution);
 	pv_get_info->ui4_sink_native_ntsc_resolution =
 	    _HdmiSinkAvCap.ui4_sink_native_ntsc_resolution;
 	pv_get_info->ui4_sink_native_pal_resolution = _HdmiSinkAvCap.ui4_sink_native_pal_resolution;

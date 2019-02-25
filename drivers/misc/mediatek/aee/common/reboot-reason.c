@@ -255,8 +255,7 @@ inline void aee_print_bt(struct pt_regs *regs)
 #endif
 			cur_frame.pc = excp_regs->reg_pc;
 		}
-		//aee_nested_printf("%p, ", (void *)cur_frame.pc);
-                aee_nested_printf("[<%p>]%pS\n", (void *)cur_frame.pc, (void *)cur_frame.pc);
+		aee_nested_printf("%p, ", (void *)cur_frame.pc);
 
 	}
 	aee_nested_printf("\n");
@@ -318,7 +317,7 @@ asmlinkage void aee_stop_nested_panic(struct pt_regs *regs)
 	switch (atomic_read(&nested_panic_time)) {
 	case 2:
 		aee_print_regs(regs);
-		aee_nested_printf("backtrace:\n");
+		aee_nested_printf("backtrace:");
 		aee_print_bt(regs);
 		break;
 
@@ -358,7 +357,7 @@ asmlinkage void aee_stop_nested_panic(struct pt_regs *regs)
 			aee_nested_printf("Current\n");
 			if (virt_addr_valid(regs)) {
 				len = aee_nested_save_stack(regs);
-				aee_nested_printf("\nbacktrace:\n");
+				aee_nested_printf("\nbacktrace:");
 				aee_print_bt(regs);
 			}
 		}

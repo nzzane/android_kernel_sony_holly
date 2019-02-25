@@ -6,6 +6,7 @@
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 #include <linux/aee.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -29,7 +30,7 @@ static int trip_temp[10] = {120000,110000,100000,90000,80000,70000,65000,60000,5
 static struct thermal_zone_device *thz_dev;
 
 //static struct thermal_cooling_device *cl_dev_sysrst;
-static int mtktspopram_debug_log = 1;
+static int mtktspopram_debug_log = 0;
 static int kernelmode = 0;
 static int g_THERMAL_TRIP[10] = {0,0,0,0,0,0,0,0,0,0};
 static int num_trip=0;
@@ -50,7 +51,7 @@ static char g_bind9[20]={0};
 #define mtktspopram_dprintk(fmt, args...)   \
 do {                                    \
     if (mtktspopram_debug_log) {                \
-        pr_notice("Power/POPRAM_Thermal" fmt, ##args); \
+        xlog_printk(ANDROID_LOG_INFO, "Power/POPRAM_Thermal", fmt, ##args); \
     }                                   \
 } while(0)
 

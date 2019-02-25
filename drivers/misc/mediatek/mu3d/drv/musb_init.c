@@ -19,10 +19,6 @@
 #include <linux/mu3d/hal/mu3d_hal_phy.h>
 #include <linux/mu3d/hal/mu3d_hal_usb_drv.h>
 
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-#include <mach/mt_usb2jtag.h>
-#endif
-
 #ifdef CONFIG_PROJECT_PHY
 #include <linux/mu3phy/mtk-phy-asic.h>
 #endif
@@ -618,12 +614,12 @@ static irqreturn_t generic_interrupt(int irq, void *__hci)
 
 void mtu3d_musb_enable(struct musb *musb)
 {
-	os_printk(K_DEBUG, "%s\n", __func__);
+	os_printk(K_INFO, "%s\n", __func__);
 }
 
 void mtu3d_musb_disable(struct musb *musb)
 {
-	os_printk(K_DEBUG, "%s\n", __func__);
+	os_printk(K_INFO, "%s\n", __func__);
 
 #ifdef CONFIG_PROJECT_PHY
 	/* Comment from CC Chou.
@@ -680,7 +676,9 @@ static int mtu3d_musb_exit(struct musb *musb)
 extern bool usb_phy_check_in_uart_mode(void);
 extern bool in_uart_mode;
 #endif
+
 extern void usb20_pll_settings(bool host, bool forceOn);
+
 static void mtu3d_musb_reg_init(struct musb *musb)
 {
 	int ret = 1;
@@ -713,10 +711,9 @@ static void mtu3d_musb_reg_init(struct musb *musb)
 
 		/* disable ip power down, disable U2/U3 ip power down */
 		_ex_mu3d_hal_ssusb_en();
+
 		/* USB PLL Force settings */
-#ifdef CONFIG_PROJECT_PHY
 		usb20_pll_settings(false, false);
-#endif
 
 		/* reset U3D all dev module. */
 		mu3d_hal_rst_dev();
@@ -738,12 +735,6 @@ static int mtu3d_probe(struct platform_device *pdev)
 
 	int ret = -ENOMEM;
 
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-	if (usb2jtag_mode()) {
-		pr_err("[USB2JTAG] in usb2jtag mode, not to initialize usb driver\n");
-		return 0;
-	}
-#endif
 	os_printk(K_DEBUG, "%s\n", __func__);
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -877,5 +868,4 @@ static struct platform_driver mtu3d_driver = {
 MODULE_DESCRIPTION("mtu3d MUSB Glue Layer");
 MODULE_AUTHOR("MediaTek");
 MODULE_LICENSE("GPL v2");
-
 module_platform_driver(mtu3d_driver);

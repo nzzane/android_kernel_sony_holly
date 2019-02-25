@@ -171,7 +171,13 @@ static int fat_write_begin(struct file *file, struct address_space *mapping,
 				&MSDOS_I(mapping->host)->mmu_private);
 #if defined(FEATURE_STORAGE_PID_LOGGER)
 	if( page_logger && (*pagep)) {
+		//printk(KERN_INFO"fat write_begin hank logger count:%d init %x currentpid:%d page:%x mem_map:%x pfn:%d page->index:%d\n", num_physpages, page_logger, current->pid, *pagep, mem_map, (unsigned)((*pagep) - mem_map), (*pagep)->index);
+		//printk(KERN_INFO"page_logger_lock:%x %d", page_logger_lock, ((num_physpages+(1<<PAGE_LOCKER_SHIFT)-1)>>PAGE_LOCKER_SHIFT));
+		//#if defined(CONFIG_FLATMEM)
+		//page_index = (unsigned long)((*pagep) - mem_map) ;
+		//#else
 		page_index = (unsigned long)(__page_to_pfn(*pagep))- PHYS_PFN_OFFSET;
+		//#endif
 		tmp_logger =((struct page_pid_logger *)page_logger) + page_index;
 		spin_lock_irqsave(&g_locker, g_flags);
 		if( page_index < num_physpages) {
@@ -181,6 +187,8 @@ static int fat_write_begin(struct file *file, struct address_space *mapping,
 				tmp_logger->pid2 = current->pid;
 		}
 		spin_unlock_irqrestore(&g_locker, g_flags);
+		//printk(KERN_INFO"tmp logger pid1:%u pid2:%u pfn:%d page:%x pos:%x host:%x max_mapnr:%x\n", tmp_logger->pid1, tmp_logger->pid2, (unsigned long)((*pagep) - mem_map),(*pagep), pos, mapping->host, max_mapnr );
+		//printk(KERN_INFO"tmp logger pid1:%u pid2:%u pfn:%lu page:%p\n", tmp_logger->pid1, tmp_logger->pid2, (unsigned long)(__page_to_pfn(*pagep)),(*pagep));
 	}
 #endif
 	if (err < 0)
@@ -652,8 +660,6 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 	int new_rdonly;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	*flags |= MS_NODIRATIME | (sbi->options.isvfat ? 0 : MS_NOATIME);
-
-	sync_filesystem(sb);
 
 	/* make sure we update state on remount. */
 	new_rdonly = *flags & MS_RDONLY;
@@ -1224,6 +1230,16 @@ out:
 	return 0;
 }
 
+static void fat_dummy_inode_init(struct inode *inode)
+{
+	/* Initialize this dummy inode to work as no-op. */
+	MSDOS_I(inode)->mmu_private = 0;
+	MSDOS_I(inode)->i_start = 0;
+	MSDOS_I(inode)->i_logstart = 0;
+	MSDOS_I(inode)->i_attrs = 0;
+	MSDOS_I(inode)->i_pos = 0;
+}
+
 static int fat_read_root(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
@@ -1543,12 +1559,13 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	fat_inode = new_inode(sb);
 	if (!fat_inode)
 		goto out_fail;
-	MSDOS_I(fat_inode)->i_pos = 0;
+	fat_dummy_inode_init(fat_inode);
 	sbi->fat_inode = fat_inode;
 
 	fsinfo_inode = new_inode(sb);
 	if (!fsinfo_inode)
 		goto out_fail;
+	fat_dummy_inode_init(fsinfo_inode);
 	fsinfo_inode->i_ino = MSDOS_FSINFO_INO;
 	sbi->fsinfo_inode = fsinfo_inode;
 	insert_inode_hash(fsinfo_inode);

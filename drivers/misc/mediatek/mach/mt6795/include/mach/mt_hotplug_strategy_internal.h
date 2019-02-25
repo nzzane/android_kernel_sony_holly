@@ -51,7 +51,10 @@ extern "C" {
 #define DEF_CPU_UP_THRESHOLD                (95)
 #define DEF_CPU_UP_TIMES                    (2)
 #define DEF_CPU_DOWN_THRESHOLD              (85)
-#define DEF_CPU_DOWN_TIMES                  (3) //CORE-BH-LowPowerPatch-00*
+//charge by zhoulingyun for cx861 powersave (wufangqi 20150906) start
+//#define DEF_CPU_DOWN_TIMES                  (8)
+#define DEF_CPU_DOWN_TIMES                  (5)
+//charge by zhoulingyun for cx861 powersave (wufangqi 20150906) end
 #define DEF_TLP_TIMES                       (1)
 
 #define EN_CPU_INPUT_BOOST                  (1)

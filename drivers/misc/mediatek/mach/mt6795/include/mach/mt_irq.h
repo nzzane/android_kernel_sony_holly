@@ -41,7 +41,7 @@ enum
 //FIXME: Marcos Add for name alias (may wrong!!!!!)
 #define MT_SPM_IRQ_ID SLEEP_IRQ_BIT0_ID
 #define MT_SPM1_IRQ_ID SLEEP_IRQ_BIT1_ID
-#define MT_KP_IRQ_ID -1//KP_IRQ_BIT_ID
+#define MT_KP_IRQ_ID KP_IRQ_BIT_ID
 #define MD_WDT_IRQ_ID WDT_IRQ_BIT_ID
 #define MT_CIRQ_IRQ_ID SYS_CIRQ_IRQ_BIT_ID
 #define MT_USB0_IRQ_ID USB_MCU_IRQ_BIT1_ID

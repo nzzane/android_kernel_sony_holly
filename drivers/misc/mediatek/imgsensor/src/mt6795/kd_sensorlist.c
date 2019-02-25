@@ -24,8 +24,6 @@
 
 #include "kd_sensorlist.h"
 
-#include <linux/fih_hw_info.h> /*MM-SL-ModifyForDP-00+ */
-#include <mach/mt_vcore_dvfs.h>/* MM-MC-SetI2cClockRateTo400kHz-00+ */
 #ifdef CONFIG_OF
 /* device tree */
 #include <linux/of.h>
@@ -42,17 +40,7 @@
 
 #define PDAF_DATA_SIZE 4096
 
-/* Camera information */
-#define PROC_CAMERA_INFO "driver/camera_info"
-#define camera_info_size 128
-char mtk_ccm_name[camera_info_size] = {0};
-static unsigned int gDrvIndex = 0;
 static DEFINE_SPINLOCK(kdsensor_drv_lock);
-/*MM-SL-FixThereIsNoMainCam-00+{ */
-int mAlive = 0;
-int fAlive = 0;
-int sensorAlive = 1;
-/*MM-SL-FixThereIsNoMainCam-00+} */
 
 /* Move these defines to kd_camera_hw.h, so they can be project-dependent
 #define SUPPORT_I2C_BUS_NUM1        0
@@ -66,7 +54,6 @@ int sensorAlive = 1;
 #define MAIN_CAM_USE_I2C_NUM    SUPPORT_I2C_BUS_NUM1
 #define SUB_CAM_USE_I2C_NUM     SUPPORT_I2C_BUS_NUM1
 #define MAIN2_CAM_USE_I2C_NUM   SUPPORT_I2C_BUS_NUM2
-#define PDP_SUB_CAM_USE_I2C_NUM SUPPORT_I2C_BUS_NUM2 /*MM-SL-ModifyForDP-00+ */
 
 #define CAMERA_HW_DRVNAME1  "kd_camera_hw"
 #define CAMERA_HW_DRVNAME2  "kd_camera_hw_bus2"
@@ -81,26 +68,25 @@ static struct i2c_board_info i2c_devs2 __initdata = {I2C_BOARD_INFO(CAMERA_HW_DR
 ******************************************************************************/
 #define PFX "[kd_sensorlist]"
 #define PK_DBG_NONE(fmt, arg...)    do {} while (0)
-#define PK_DBG_FUNC(fmt, arg...)    pr_debug(fmt, ##arg)
-#define PK_INF(fmt, args...)     pr_debug(PFX "[%s] " fmt, __FUNCTION__, ##args)
+#define PK_DBG_FUNC(fmt, arg...)    xlog_printk(ANDROID_LOG_DEBUG , PFX, fmt, ##arg)
 
 
-//#define DEBUG_CAMERA_HW_K
+#define DEBUG_CAMERA_HW_K
 #ifdef DEBUG_CAMERA_HW_K
 #define PK_DBG PK_DBG_FUNC
-#define PK_ERR(fmt, arg...)         pr_err(fmt, ##arg)
+#define PK_ERR(fmt, arg...)         xlog_printk(ANDROID_LOG_ERROR , PFX , fmt, ##arg)
 #define PK_XLOG_INFO(fmt, args...) \
 		do {    \
-		    pr_debug(fmt, ##args); \
+		    xlog_printk(ANDROID_LOG_DEBUG, PFX, fmt, ##args); \
 		} while (0)
 #else
 #define PK_DBG(a, ...)
-#define PK_ERR(fmt, arg...)             pr_err(fmt, ##arg)
+#define PK_ERR(a, ...)
 #define PK_XLOG_INFO(a...)
 
 #endif
 //Get ISP Clk
-//extern int get_isp_clk(void);
+extern int get_isp_clk(void);
 /*******************************************************************************
 * Proifling
 ********************************************************************************/
@@ -488,7 +474,7 @@ int kdReleaseI2CTriggerLock(void)
     /* ret = mt_wait4_i2c_complete(); */
 
     /* if (ret < 0 ) { */
-    /* PK_DBG("[error]wait i2c fail\n"); */
+    /* printk("[error]wait i2c fail\n"); */
     /* } */
 
     return ret;
@@ -682,10 +668,8 @@ MUINT32 FeatureParaLen = 0;
 MUINT32
 kd_MultiSensorOpen(void)
 {
-	MUINT32 ret = ERROR_NONE;
-	MINT32 i = 0;
-	unsigned int product_phase = fih_get_product_phase(); /*MM-SL-ModifyForDP-00+ */
-
+MUINT32 ret = ERROR_NONE;
+MINT32 i = 0;
     KD_MULTI_FUNCTION_ENTRY();
     /* from hear to tail */
     /* for ( i = KDIMGSENSOR_INVOKE_DRIVER_0 ; i < KDIMGSENSOR_MAX_INVOKE_DRIVERS ; i++ ) { */
@@ -710,19 +694,10 @@ kd_MultiSensorOpen(void)
 		PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS2\n");
 	    }
 	    else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-			/*MM-SL-ModifyForDP-00*{ */
-			if(product_phase == PHASE_PD){	
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = PDP_SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-				PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS2\n");
-			}else{
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-				PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS1\n");
-			}
-			/*MM-SL-ModifyForDP-00*} */
+		spin_lock(&kdsensor_drv_lock);
+		gI2CBusNum = SUB_CAM_USE_I2C_NUM;
+		spin_unlock(&kdsensor_drv_lock);
+		PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS1\n");
 	    }
 	    else {
 		spin_lock(&kdsensor_drv_lock);
@@ -833,7 +808,6 @@ MUINT32 *pFeatureParaLen)
 {
     MUINT32 ret = ERROR_NONE;
     u32 i = 0;
-	unsigned int product_phase = fih_get_product_phase(); /*MM-SL-ModifyForDP-00+ */
     KD_MULTI_FUNCTION_ENTRY();
     for (i = KDIMGSENSOR_INVOKE_DRIVER_0; i < KDIMGSENSOR_MAX_INVOKE_DRIVERS; i++) {
 	if (g_bEnableDriver[i] && g_pInvokeSensorFunc[i]) {
@@ -846,17 +820,9 @@ MUINT32 *pFeatureParaLen)
 		     /* PK_XLOG_INFO("kd_MultiSensorFeatureControl: switch I2C BUS2\n"); */
 		}
 		else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-			/*MM-SL-ModifyForDP-00*{ */
-			if(product_phase == PHASE_PD){	
-			    spin_lock(&kdsensor_drv_lock);
-			    gI2CBusNum = PDP_SUB_CAM_USE_I2C_NUM;
-			    spin_unlock(&kdsensor_drv_lock);
-			}else{
-				spin_lock(&kdsensor_drv_lock);
-			    gI2CBusNum = SUB_CAM_USE_I2C_NUM;
-			    spin_unlock(&kdsensor_drv_lock);
-			}
-			/*MM-SL-ModifyForDP-00*} */
+		    spin_lock(&kdsensor_drv_lock);
+		    gI2CBusNum = SUB_CAM_USE_I2C_NUM;
+		    spin_unlock(&kdsensor_drv_lock);
 		     /* PK_XLOG_INFO("kd_MultiSensorFeatureControl: switch I2C BUS2\n"); */
 		}
 		else {
@@ -892,7 +858,6 @@ MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData)
 {
     MUINT32 ret = ERROR_NONE;
     u32 i = 0;
-	unsigned int product_phase = fih_get_product_phase(); /*MM-SL-ModifyForDP-00+ */
     KD_MULTI_FUNCTION_ENTRY();
     for (i = KDIMGSENSOR_INVOKE_DRIVER_0; i < KDIMGSENSOR_MAX_INVOKE_DRIVERS; i++) {
 	if (g_bEnableDriver[i] && g_pInvokeSensorFunc[i]) {
@@ -904,17 +869,9 @@ MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData)
 		 /* PK_XLOG_INFO("kd_MultiSensorControl: switch I2C BUS2\n"); */
 	    }
 	    else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-			/*MM-SL-ModifyForDP-00*{ */
-			if(product_phase == PHASE_PD){		
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = PDP_SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-			}else{
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-			}
-			/*MM-SL-ModifyForDP-00*} */
+		spin_lock(&kdsensor_drv_lock);
+		gI2CBusNum = SUB_CAM_USE_I2C_NUM;
+		spin_unlock(&kdsensor_drv_lock);
 		 /* PK_XLOG_INFO("kd_MultiSensorControl: switch I2C BUS2\n"); */
 	    }
 	    else {
@@ -962,7 +919,6 @@ kd_MultiSensorClose(void)
 {
     MUINT32 ret = ERROR_NONE;
     u32 i = 0;
-	unsigned int product_phase = fih_get_product_phase(); /*MM-SL-ModifyForDP-00+ */
     KD_MULTI_FUNCTION_ENTRY();
     for (i = KDIMGSENSOR_INVOKE_DRIVER_0; i < KDIMGSENSOR_MAX_INVOKE_DRIVERS; i++) {
 	if (g_bEnableDriver[i] && g_pInvokeSensorFunc[i]) {
@@ -974,19 +930,10 @@ kd_MultiSensorClose(void)
 		 PK_XLOG_INFO("kd_MultiSensorClose: switch I2C BUS2\n");
 	    }
 	    else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-			/*MM-SL-ModifyForDP-00*{ */
-			if(product_phase == PHASE_PD){	
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = PDP_SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-		 		PK_XLOG_INFO("kd_MultiSensorClose: switch I2C BUS2\n");
-			}else{
-				spin_lock(&kdsensor_drv_lock);
-				gI2CBusNum = SUB_CAM_USE_I2C_NUM;
-				spin_unlock(&kdsensor_drv_lock);
-		 		PK_XLOG_INFO("kd_MultiSensorClose: switch I2C BUS1\n");
-			}
-			/*MM-SL-ModifyForDP-00*} */
+		spin_lock(&kdsensor_drv_lock);
+		gI2CBusNum = SUB_CAM_USE_I2C_NUM;
+		spin_unlock(&kdsensor_drv_lock);
+		 PK_XLOG_INFO("kd_MultiSensorClose: switch I2C BUS2\n");
 	    }
 	    else {
 		spin_lock(&kdsensor_drv_lock);
@@ -1058,13 +1005,9 @@ int kdSetDriver(unsigned int *pDrvIndex)
     ACDK_KD_SENSOR_INIT_FUNCTION_STRUCT *pSensorList = NULL;
     u32 drvIdx[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {0, 0};
     u32 i;
-	unsigned int product_phase = fih_get_product_phase(); /*MM-SL-ModifyForDP-00+ */
 
     PK_XLOG_INFO("pDrvIndex:0x%08x/0x%08x\n", pDrvIndex[KDIMGSENSOR_INVOKE_DRIVER_0], pDrvIndex[KDIMGSENSOR_INVOKE_DRIVER_1]);
     /* set driver for MAIN or SUB sensor */
-
-    /* Camera information */
-    gDrvIndex = pDrvIndex[KDIMGSENSOR_INVOKE_DRIVER_0];
 
     if (0 != kdGetSensorInitFuncList(&pSensorList))
     {
@@ -1089,17 +1032,9 @@ int kdSetDriver(unsigned int *pDrvIndex)
 	     /* PK_XLOG_INFO("kdSetDriver: switch I2C BUS2\n"); */
 	}
 	else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-		/*MM-SL-ModifyForDP-00*{ */
-		if(product_phase == PHASE_PD){
-	    	spin_lock(&kdsensor_drv_lock);
-	    	gI2CBusNum = PDP_SUB_CAM_USE_I2C_NUM;
-	    	spin_unlock(&kdsensor_drv_lock);
-		}else{
-			spin_lock(&kdsensor_drv_lock);
-	    	gI2CBusNum = SUB_CAM_USE_I2C_NUM;
-	    	spin_unlock(&kdsensor_drv_lock);
-		}
-		/*MM-SL-ModifyForDP-00*{ */
+	    spin_lock(&kdsensor_drv_lock);
+	    gI2CBusNum = SUB_CAM_USE_I2C_NUM;
+	    spin_unlock(&kdsensor_drv_lock);
 	     /* PK_XLOG_INFO("kdSetDriver: switch I2C BUS2\n"); */
 	}
 	else {
@@ -1131,7 +1066,7 @@ int kdSetDriver(unsigned int *pDrvIndex)
 	    memcpy((char *)g_invokeSensorNameStr[i], (char *)pSensorList[drvIdx[i]].drvname, sizeof(pSensorList[drvIdx[i]].drvname));
 	    /* return sensor ID */
 	    /* pDrvIndex[0] = (unsigned int)pSensorList[drvIdx].SensorId; */
-        PK_INF("[%d][%d][%d][%s]\n", i, g_bEnableDriver[i], g_invokeSocketIdx[i], g_invokeSensorNameStr[i]);
+	    PK_XLOG_INFO("[kdSetDriver] :[%d][%d][%d][%s][%d]\n", i, g_bEnableDriver[i], g_invokeSocketIdx[i], g_invokeSensorNameStr[i], sizeof(pSensorList[drvIdx[i]].drvname));
 	}
     }
     return 0;
@@ -1387,11 +1322,6 @@ inline static int adopt_CAMERA_HW_CheckIsAlive(void)
     KD_IMGSENSOR_PROFILE("kdModulePowerOn");
 
     g_IsSearchSensor = 1;
-    /* Camera information */
-    if(gDrvIndex == 0x10000)
-    {
-        memset(mtk_ccm_name,0,camera_info_size);
-    }
 
     if (g_pSensorFunc) {
 	for (i = KDIMGSENSOR_INVOKE_DRIVER_0; i < KDIMGSENSOR_MAX_INVOKE_DRIVERS; i++) {
@@ -1408,19 +1338,10 @@ inline static int adopt_CAMERA_HW_CheckIsAlive(void)
 		else {
 
 		    PK_DBG(" Sensor found ID = 0x%x\n", sensorID);
-            snprintf(mtk_ccm_name,sizeof(mtk_ccm_name),"%s CAM[%d]:%s;",mtk_ccm_name,g_invokeSocketIdx[i],g_invokeSensorNameStr[i]);
-			/*MM-SL-FixThereIsNoMainCam-00+{ */
-			//PK_DBG(" Sensor found ID = %d\n", sensorID);
-			if (sensorID == 532)
-				fAlive = 1;
-			if (sensorID == 560)
-				mAlive = 1;
-			/*MM-SL-FixThereIsNoMainCam-00+} */
 		    err = ERROR_NONE;
 		}
 		if (ERROR_NONE != err)
 		{
-			sensorAlive = 0; /*MM-SL-FixThereIsNoMainCam-00+ */
 		    PK_DBG("ERROR:adopt_CAMERA_HW_CheckIsAlive(), No imgsensor alive\n");
 		}
 	    }
@@ -1575,7 +1496,7 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	return -EFAULT;
     }
 
-    /*PK_DBG("[CAMERA_HW][Resolution] %x\n", pSensorGetInfo->pSensorResolution);*/
+    PK_DBG("[CAMERA_HW][Resolution] %x\n", pSensorGetInfo->pSensorResolution);
 
     /* TO get preview value */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CAMERA_PREVIEW;
@@ -1886,10 +1807,10 @@ inline static int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_SET_AWB_GAIN:
 	case SENSOR_FEATURE_SET_MIN_MAX_FPS:
 	case SENSOR_FEATURE_GET_PDAF_INFO:
+    case SENSOR_FEATURE_GET_SENSOR_PDAF_EEPROM_DATASIZE: /* add by yfx */
 	case SENSOR_FEATURE_GET_PDAF_DATA:
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
-    case SENSOR_FEATURE_SET_PDAF:
-	case SENSOR_FEATURE_SET_LSC_SWITCH: /*MM-SL-LSCSwitch-00+ */
+	//case SENSOR_FEATURE_SET_ISO:
 	    /*  */
 	    if (copy_from_user((void *)pFeaturePara , (void *) pFeatureCtrl->pFeaturePara, FeatureParaLen)) {
 		kfree(pFeaturePara);
@@ -1991,7 +1912,7 @@ inline static int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	    break;
     }
 
-	/*in case that some structure are passed from user space by ptr */
+	/*in case that some structure are passed from user sapce by ptr */
 	switch (pFeatureCtrl->FeatureId) {
 	case SENSOR_FEATURE_GET_DEFAULT_FRAME_RATE_BY_SCENARIO:
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
@@ -2464,7 +2385,6 @@ inline static int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
     {
 	case SENSOR_FEATURE_SET_ESHUTTER:
 	case SENSOR_FEATURE_SET_GAIN:
-	case SENSOR_FEATURE_SET_LSC_SWITCH: /*MM-SL-LSCSwitch-00+ */
 	case SENSOR_FEATURE_SET_GAIN_AND_ESHUTTER:
 	case SENSOR_FEATURE_SET_ISP_MASTER_CLOCK_FREQ:
 	case SENSOR_FEATURE_SET_REGISTER:
@@ -2515,8 +2435,9 @@ inline static int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_VC_INFO:
 	case SENSOR_FEATURE_SET_MIN_MAX_FPS:
 	case SENSOR_FEATURE_GET_PDAF_INFO:
+    case SENSOR_FEATURE_GET_SENSOR_PDAF_EEPROM_DATASIZE:   /* add by yfx  */
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
-    case SENSOR_FEATURE_SET_PDAF:
+	//case SENSOR_FEATURE_SET_ISO:
 	    /*  */
 	    if (copy_to_user((void __user *) pFeatureCtrl->pFeaturePara, (void *)pFeaturePara , FeatureParaLen)) {
 		kfree(pFeaturePara);
@@ -3009,13 +2930,6 @@ static long CAMERA_HW_Ioctl(
     void *pBuff = NULL;
     u32 *pIdx = NULL;
 
-	/*MM-SL-FixThereIsNoMainCam-00+{ */
-	//PK_DBG("[CAMERA SENSOR] fAlive = %d, mAlive=%d, sensorAlive=%d\n",fAlive, mAlive, sensorAlive);
-	if(!mAlive && fAlive && !sensorAlive){
-		PK_DBG("[CAMERA SENSOR] main camera is not alive but front camera is alive, retutn all ioctl!\n");
-		return -1;
-	}
-	/*MM-SL-FixThereIsNoMainCam-00+} */
     mutex_lock(&kdCam_Mutex);
 
 
@@ -3106,7 +3020,7 @@ static long CAMERA_HW_Ioctl(
 
         case KDIMGSENSORIOC_X_GET_ISP_CLK:
             //PK_DBG("get_isp_clk=%d\n",get_isp_clk());
-            *(unsigned int*)pBuff = 0;//get_isp_clk();
+            *(unsigned int*)pBuff = get_isp_clk();
             break;
 
 	default:
@@ -3285,7 +3199,7 @@ static int CAMERA_HW_i2c_probe(struct i2c_client *client, const struct i2c_devic
     spin_lock(&kdsensor_drv_lock);
     g_pstI2Cclient = client;
     /* set I2C clock rate */
-    g_pstI2Cclient->timing = 400;/* 400k */
+    g_pstI2Cclient->timing = 200;/* 200k */
     g_pstI2Cclient->ext_flag &= ~I2C_POLLING_FLAG; /* No I2C polling busy waiting */
 
     spin_unlock(&kdsensor_drv_lock);
@@ -3484,7 +3398,7 @@ static int CAMERA_HW_i2c_probe2(struct i2c_client *client, const struct i2c_devi
     g_pstI2Cclient2 = client;
 
     /* set I2C clock rate */
-    g_pstI2Cclient2->timing = 400;/* 400k */
+    g_pstI2Cclient2->timing = 200;/* 200k */
     g_pstI2Cclient2->ext_flag &= ~I2C_POLLING_FLAG; /* No I2C polling busy waiting */
     spin_unlock(&kdsensor_drv_lock);
 
@@ -3930,25 +3844,6 @@ static  struct file_operations fcamera_proc_fops3 = {
     .write = CAMERA_HW_Reg_Debug3
 };
 
-/* Camera information */
-static int subsys_camera_info_read(struct seq_file *m, void *v)
-{
-   PK_ERR("subsys_camera_info_read %s\n",mtk_ccm_name);
-   seq_printf(m, "%s\n",mtk_ccm_name);
-   return 0;
-};
-
-static int proc_camera_info_open(struct inode *inode, struct file *file)
-{
-    return single_open(file, subsys_camera_info_read, NULL);
-};
-
-static  struct file_operations fcamera_proc_fops1 = {
-    .owner = THIS_MODULE,
-    .open  = proc_camera_info_open,
-    .read  = seq_read,
-};
-
 /*=======================================================================
   * CAMERA_HW_i2C_init()
   *=======================================================================*/
@@ -3994,9 +3889,6 @@ static int __init CAMERA_HW_i2C_init(void)
     proc_create("driver/camsensor2", 0, NULL, &fcamera_proc_fops2);
     proc_create("driver/camsensor3", 0, NULL, &fcamera_proc_fops3);
 
-    /* Camera information */
-    memset(mtk_ccm_name,0,camera_info_size);
-    proc_create(PROC_CAMERA_INFO, 0, NULL, &fcamera_proc_fops1);
 
 #else
     /* Register proc file for main sensor register debug */

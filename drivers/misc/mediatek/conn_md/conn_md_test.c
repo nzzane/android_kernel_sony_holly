@@ -1,4 +1,5 @@
 
+
 #define DFT_TAG "[CONN_MD_EXP]"
 #include "conn_md_log.h"
 
@@ -6,7 +7,11 @@
 
 #include "conn_md.h"
 
+extern int mtk_conn_md_bridge_reg(uint32 u_id, CONN_MD_BRIDGE_OPS *p_ops);
+extern int mtk_conn_md_bridge_unreg(uint32 u_id);
+extern int mtk_conn_md_bridge_send_msg(ipc_ilm_t *ilm);
 CONN_MD_BRIDGE_OPS g_ops;
+
 
 static int conn_md_test_rx_cb(ipc_ilm_t *ilm);
 
@@ -18,7 +23,6 @@ int conn_md_test(void)
 	local_para_struct *p_buf_str;
 	int i = 0;
 	int msg_len = 0;
-
 	p_buf_str = kmalloc(sizeof(local_para_struct) + PACKAGE_SIZE, GFP_ATOMIC);
 	if (NULL == p_buf_str) {
 		CONN_MD_ERR_FUNC("kmalloc for local para ptr structure failed.\n");
@@ -31,6 +35,7 @@ int conn_md_test(void)
 	ilm.local_para_ptr = p_buf_str;
 
 	g_ops.rx_cb = conn_md_test_rx_cb;
+
 
 	mtk_conn_md_bridge_reg(0x800001, &g_ops);
 	mtk_conn_md_bridge_reg(0x800005, &g_ops);
@@ -118,24 +123,27 @@ int conn_md_test(void)
 	conn_md_dmp_msg_logged(0, 0);
 	conn_md_dmp_msg_logged(0x80000a, 0);
 
+
 	return 0;
 }
+
 
 static int conn_md_test_rx_cb(ipc_ilm_t *ilm)
 {
 	int i = 0;
 
-	pr_warn("%s, ilm:0x%p\n", __func__, ilm);
-	pr_warn("%s, ilm:src_id(%d), dst_id(%d), msg_id(%d)\n", __func__,
+	pr_warn(KERN_WARNING "%s, ilm:0x%p\n", __func__, ilm);
+	pr_warn(KERN_WARNING "%s, ilm:src_id(%d), dst_id(%d), msg_id(%d)\n", __func__,
 		ilm->src_mod_id, ilm->dest_mod_id, ilm->msg_id);
 
-	pr_warn("%s, local_para_ptr:0x%p, msg_len:%d\n", __func__, ilm->local_para_ptr,
+	pr_warn(KERN_WARNING "%s, local_para_ptr:0x%p, msg_len:%d\n", __func__, ilm->local_para_ptr,
 		ilm->local_para_ptr->msg_len);
 
 	for (i = 0; i < ilm->local_para_ptr->msg_len; i++) {
-		pr_warn("%d ", ilm->local_para_ptr->data[i]);
-		if ((0 != i) && (((1 + i) % 8) == 0))
-			pr_warn("\n");
+		pr_warn(KERN_WARNING "%d ", ilm->local_para_ptr->data[i]);
+		if ((0 != i) && (((1 + i) % 8) == 0)) {
+			pr_warn(KERN_WARNING "\n");
+		}
 	}
 	return 0;
 }

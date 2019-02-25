@@ -129,7 +129,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.coherent_dma_mask = XHCI_DMA_BIT_MASK;
 	pdev->dev.dma_mask = &xhci_dma_mask;
 	pdev->dev.release = xhci_hcd_release;
 #else
@@ -224,6 +224,8 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 
+	xhci->xhc_state |= XHCI_STATE_REMOVING;
+
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
 
@@ -231,7 +233,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	#ifdef CONFIG_MTK_XHCI
+	#ifdef CONFIG_MTK_XHCI	
 	mtk_xhci_reset(xhci);
 	#endif
 	kfree(xhci);

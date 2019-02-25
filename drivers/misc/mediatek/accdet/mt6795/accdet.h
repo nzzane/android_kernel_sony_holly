@@ -66,7 +66,7 @@ enum accdet_report_state
     NO_DEVICE =0,
     HEADSET_MIC = 1,
     HEADSET_NO_MIC = 2,
-    HEADSET_ILEGAL = 3,  /* MM-NC-HeadsetDetect-01 */
+    //HEADSET_ILEGAL = 3,
     //DOUBLE_CHECK_TV = 4
 };
 
@@ -76,7 +76,6 @@ enum accdet_status
     MIC_BIAS = 1,
     //DOUBLE_CHECK = 2,
     HOOK_SWITCH = 2,
-    NOT_SUPPORT = 3, /* MM-NC-HeadsetDetect-01 */
     //MIC_BIAS_ILLEGAL =3,
     //TV_OUT = 5,
     STAND_BY =4
@@ -88,7 +87,6 @@ char *accdet_status_string[5]=
     "Headset_plug_in",
     //"Double_check",
     "Hook_switch",
-    "Not_Support",  /* MM-NC-HeadsetDetect-01 */
     //"Tvout_plug_in",
     "Stand_by"
 };
@@ -98,7 +96,7 @@ char *accdet_report_string[4]=
     "No_device",
     "Headset_mic",
     "Headset_no_mic",
-    "HEADSET_illegal",  /* MM-NC-HeadsetDetect-01 */
+    //"HEADSET_illegal",
    // "Double_check"
 };
 

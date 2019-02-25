@@ -1,6 +1,5 @@
 #include "mag_factory.h"
 
-
 static int mag_factory_open(struct inode *inode, struct file *file)
 {
     file->private_data = mag_context_obj;

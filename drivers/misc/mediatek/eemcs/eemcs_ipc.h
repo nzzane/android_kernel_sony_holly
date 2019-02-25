@@ -32,8 +32,7 @@
 #define CCCI_IPC_WAIT_MD_READY	    _IO(CCCI_IPC_MAGIC,2)
 #define CCCI_IPC_KERN_WRITE_TEST    _IO(CCCI_IPC_MAGIC,3)
 
-
-// MD <-> AP Msg_id mapping enum
+/* MD <-> AP Msg_id mapping enum */
 typedef enum
 {
     IPC_L4C_MSG_ID_BEGIN = 0x80000000,
@@ -43,7 +42,6 @@ typedef enum
     
 }EEMCS_IPC_MSG_ID_RANGE;
 
-#if 0
 typedef enum
 {
     IPC_L4C_MSG_ID_INVALID = IPC_L4C_MSG_ID_BEGIN,
@@ -55,7 +53,7 @@ typedef enum
     #include "eemcs_ipc_el1_msg_id.h"
     IPC_EL1_MSG_ID_END,    
 }EEMCS_IPC_MSG_ID_CODE;
-#endif
+
 
 
 /* IPC ILM Struct define */

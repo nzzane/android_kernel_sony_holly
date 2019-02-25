@@ -2,6 +2,7 @@
  * mt6575_vibrator.c - MT6575 Android Linux Vibrator Device Driver
  *
  * Copyright 2009-2010 MediaTek Co.,Ltd.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * DESCRIPTION:
  *     This file provid the other drivers vibrator relative functions
@@ -24,6 +25,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/timer.h>
+#include <linux/delay.h>
 
 #include <mach/mt_typedefs.h>
 /* #include <mach/mt6577_pm_ldo.h> */
@@ -31,6 +33,7 @@
 #include <cust_vibrator.h>
 #include <vibrator_hal.h>
 
+#include <mach/mt_pwm.h>
 
 #define VERSION					        "v 0.1"
 #define VIB_DEVICE				"mtk_vibrator"
@@ -58,7 +61,7 @@ Debug Message Settings
 #define MSG(evt, fmt, args...) \
 do {	\
 	if ((DBG_EVT_##evt) & DBG_EVT_MASK) { \
-		printk(fmt, ##args); \
+		pr_info(fmt, ##args); \
 	} \
 } while (0)
 
@@ -77,26 +80,189 @@ static struct work_struct vibrator_work;
 static struct hrtimer vibe_timer;
 static spinlock_t vibe_lock;
 static int vibe_state;
-static int ldo_state;
+static int ldo_state=0;
 static int shutdown_flag;
-int vib_Level; /* PERI-JC-VIBRATOR_Add_level_file_node-00+ */
+
+extern unsigned int g_call_state;
+static int force_backup=500;
+static void mt_vibrator_set_pwm_new(int force)
+{
+    struct pwm_spec_config pwm_setting;
+    int temp_force=0;
+    int THRESH=1160;  
+
+	pwm_setting.pwm_no = PWM3;
+	pwm_setting.mode = PWM_MODE_OLD;
+	pwm_setting.clk_src = PWM_CLK_OLD_MODE_BLOCK;
+    pwm_setting.pmic_pad=0;
+	pwm_setting.clk_div = CLK_DIV1;
+	
+        
+    temp_force=force+128;  //1-255  128=50%   0-100
+
+    if(temp_force==128)
+    {
+        //THRESH=1478;
+        // THRESH=1318;
+        THRESH=1160/2;
+    }else  if(temp_force>=255)
+    {
+        //THRESH=2956;
+        //THRESH=2600;
+        //THRESH=2452;
+        THRESH=1150;
+    }else if(temp_force<128)
+    {
+        //1 --   0
+        //127 -- 49
+        //2956 1478/127=11.63
+        //2636  1318/127=10.37
+        //THRESH=(1163*temp_force)/100;
+        if(temp_force <= 1) 
+        {
+            THRESH=15;  //1%       
+        }else
+        {
+            THRESH=(580*temp_force)/128;  
+        }
+
+    }else if(temp_force>128)
+    {
+        //128 --   51
+        //255 -- 100
+        //1478/127=11.63
+        //2636  1318/127=10.37
+        //2476   1238/127=9.748
+        //1160    580/127=4.57
+        THRESH=((457*(temp_force-128))/100)+580;
+        if(THRESH>1150)
+        {
+           THRESH=1150;
+        }
+              
+    }
+    pr_info("[vibrator]temp_force,THRESH=%d \n",THRESH);
+    pwm_setting.PWM_MODE_OLD_REGS.THRESH = THRESH;
+    pwm_setting.PWM_MODE_OLD_REGS.DATA_WIDTH = 1160;
+	// 50% = 1478 
+	// 100% = 2956
+	// force = 1478+force*(2956-1478)/128
+	pwm_setting.PWM_MODE_FIFO_REGS.IDLE_VALUE = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.GUARD_VALUE = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.GDURATION = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.WAVE_NUM = 0;
+
+    mt_set_gpio_mode(GPIO_VIBRATOR_PWM_PIN, GPIO_MODE_03);
+    udelay(10);
+	pwm_set_spec_config(&pwm_setting);
+    //mt_pwm_dump_regs();
+    udelay(10);
+
+             
+        mt_set_gpio_mode(GPIO_VIBRATOR_POWER_EN_PIN, GPIO_MODE_00);
+		mt_set_gpio_dir(GPIO_VIBRATOR_POWER_EN_PIN,GPIO_DIR_OUT);
+		mt_set_gpio_out(GPIO_VIBRATOR_POWER_EN_PIN,GPIO_OUT_ONE);
+		udelay(10);
+                   
+		mt_set_gpio_mode(GPIO_VIBRATOR_EN_PIN, GPIO_MODE_00);
+		mt_set_gpio_dir(GPIO_VIBRATOR_EN_PIN,GPIO_DIR_OUT);
+		mt_set_gpio_out(GPIO_VIBRATOR_EN_PIN,GPIO_OUT_ONE);
+
+}
+
+static void mt_vibrator_set_pwm(void)
+{
+	struct pwm_spec_config pwm_setting;
+	pwm_setting.pwm_no = PWM3;
+	pwm_setting.mode = PWM_MODE_OLD;
+	pwm_setting.clk_src = PWM_CLK_OLD_MODE_BLOCK;
+        pwm_setting.pmic_pad=0;
+	pwm_setting.clk_div = CLK_DIV1;
+	pr_info(KERN_INFO "[vibrator] mt_vibrator_set_pwm enter, ldo_state =  %d \n", ldo_state );
+	if(ldo_state){
+		pwm_setting.PWM_MODE_OLD_REGS.THRESH = 2452;
+        }else{
+		pwm_setting.PWM_MODE_OLD_REGS.THRESH = 0;
+	}
+        pwm_setting.PWM_MODE_OLD_REGS.DATA_WIDTH = 2476;
+	pwm_setting.PWM_MODE_FIFO_REGS.IDLE_VALUE = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.GUARD_VALUE = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.GDURATION = 0;
+	pwm_setting.PWM_MODE_FIFO_REGS.WAVE_NUM = 0;
+	pwm_set_spec_config(&pwm_setting);
+}
 
 
 static int vibr_Enable(void)
 {
-	if (!ldo_state) {
+#ifdef CONFIG_CM865_MAINBOARD //modify longcheer_liml_0922
+	if (!ldo_state)
+	{
+		ldo_state=1;	
 		vibr_Enable_HW();
-		ldo_state = 1;
+		#if 0			
+		vibr_Enable_HW();
+		if(g_call_state == 40)
+		{
+		udelay(10*1200);
+		vibr_Disable_HW();
+		}
+		else if(g_call_state == 80)
+		{
+		udelay(10*1500);
+		vibr_Disable_HW();
+		}
+		else if(g_call_state == 120)
+		{
+		udelay(10*1100);
+		 udelay(10*1100);
+		vibr_Disable_HW();
+		}
+		#endif
 	}
+
+#else
+    if (!ldo_state)
+	{
+		ldo_state=1;
+		mt_vibrator_set_pwm_new(90);//120 
+	}
+#endif
+
 	return 0;
 }
 
 static int vibr_Disable(void)
 {
-	if (ldo_state) {
+#ifdef CONFIG_CM865_MAINBOARD //modify longcheer_liml_0922
+
+	if (ldo_state) 
+	{
+       // mt_vibrator_set_pwm_new(0-g_call_state);
+       //udelay(30);
 		vibr_Disable_HW();
-		ldo_state = 0;
+		ldo_state=0;
 	}
+#else
+	if (ldo_state) 
+	{
+		vibr_Disable_HW();
+		ldo_state=0;
+	    mt_set_gpio_out(GPIO_VIBRATOR_EN_PIN,GPIO_OUT_ZERO);
+        udelay(10);
+        mt_set_gpio_mode(GPIO_VIBRATOR_POWER_EN_PIN, GPIO_MODE_00);
+        mt_set_gpio_dir(GPIO_VIBRATOR_POWER_EN_PIN,GPIO_DIR_OUT);
+        mt_set_gpio_out(GPIO_VIBRATOR_POWER_EN_PIN,GPIO_OUT_ZERO);
+        udelay(10);
+        mt_pwm_disable(PWM3, 0);
+        mt_set_gpio_mode(GPIO_VIBRATOR_PWM_PIN, GPIO_MODE_00);
+        mt_set_gpio_dir(GPIO_VIBRATOR_PWM_PIN,GPIO_DIR_OUT);
+        mt_set_gpio_out(GPIO_VIBRATOR_PWM_PIN,GPIO_OUT_ZERO);   
+	}
+#endif
+
+
+
 	return 0;
 }
 
@@ -128,19 +294,19 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	struct vibrator_hw *hw = mt_get_cust_vibrator_hw();
 
 #endif
-	printk("[vibrator]vibrator_enable: vibrator first in value = %d\n", value);
+	pr_info("[vibrator]vibrator_enable: vibrator first in value = %d\n", value);
 
 	spin_lock_irqsave(&vibe_lock, flags);
 	while (hrtimer_cancel(&vibe_timer)) {
-		printk("[vibrator]vibrator_enable: try to cancel hrtimer\n");
+		pr_info("[vibrator]vibrator_enable: try to cancel hrtimer\n");
 	}
 
 	if (value == 0 || shutdown_flag == 1) {
-		printk("[vibrator]vibrator_enable: shutdown_flag = %d\n", shutdown_flag);
+		pr_info("[vibrator]vibrator_enable: shutdown_flag = %d\n", shutdown_flag);
 		vibe_state = 0;
 	} else {
 #if 1
-		printk("[vibrator]vibrator_enable: vibrator cust timer: %d\n", hw->vib_timer);
+		pr_info("[vibrator]vibrator_enable: vibrator cust timer: %d\n", hw->vib_timer);
 #ifdef CUST_VIBR_LIMIT
 		if (value > hw->vib_limit && value < hw->vib_timer)
 #else
@@ -155,14 +321,14 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 			      ktime_set(value / 1000, (value % 1000) * 1000000), HRTIMER_MODE_REL);
 	}
 	spin_unlock_irqrestore(&vibe_lock, flags);
-	printk("[vibrator]vibrator_enable: vibrator start: %d\n", value);
+	pr_info("[vibrator]vibrator_enable: vibrator start: %d\n", value);
 	queue_work(vibrator_queue, &vibrator_work);
 }
 
 static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 {
 	vibe_state = 0;
-	printk(KERN_DEBUG "[vibrator]vibrator_timer_func: vibrator will disable\n");
+	pr_info(KERN_DEBUG "[vibrator]vibrator_timer_func: vibrator will disable\n");
 	queue_work(vibrator_queue, &vibrator_work);
 	return HRTIMER_NORESTART;
 }
@@ -186,17 +352,15 @@ static int vib_remove(struct platform_device *pdev)
 static void vib_shutdown(struct platform_device *pdev)
 {
 	unsigned long flags;
-	printk("[vibrator]vib_shutdown: enter!\n");
+	pr_info("[vibrator]vib_shutdown: enter!\n");
 	spin_lock_irqsave(&vibe_lock, flags);
 	shutdown_flag = 1;
 	if (vibe_state) {
-		printk("[vibrator]vib_shutdown: vibrator will disable\n");
+		pr_info("[vibrator]vib_shutdown: vibrator will disable\n");
 		vibe_state = 0;
-		spin_unlock_irqrestore(&vibe_lock, flags);
 		vibr_Disable();
-	} else {
-		spin_unlock_irqrestore(&vibe_lock, flags);
 	}
+	spin_unlock_irqrestore(&vibe_lock, flags);
 }
 
 /******************************************************************************
@@ -221,7 +385,7 @@ static ssize_t store_vibr_on(struct device *dev, struct device_attribute *attr, 
 			     size_t size)
 {
 	if (buf != NULL && size != 0) {
-		//printk("[vibrator]buf is %s and size is %d\n", buf, size);
+		//pr_info("[vibrator]buf is %s and size is %d\n", buf, size);
 		if (buf[0] == '0') {
 			vibr_Disable();
 		} else {
@@ -232,63 +396,6 @@ static ssize_t store_vibr_on(struct device *dev, struct device_attribute *attr, 
 }
 
 static DEVICE_ATTR(vibr_on, 0220, NULL, store_vibr_on);
-
-/* PERI-JC-VIBRATOR_Add_level_file_node-00+[ */
-static ssize_t vib_level_show(struct device *dev,struct device_attribute *attr, char *buf)
-{
-        dev_info(dev, "vib_level_show %d.\n", vib_Level);
-        return snprintf(buf, PAGE_SIZE, "%d\n", vib_Level);
-}
-
-static ssize_t vib_level_store(struct device *dev,      struct device_attribute *attr,const char *buf, size_t size)
-{
-        int Level;
-
-        Level = simple_strtoul(buf, NULL, 10);
-        if( Level < 1300 )
-        {
-                vib_Level = 1200 ;
-        }
-        else if( Level < 1500 )
-        {
-                vib_Level = 1300 ;
-        }
-        else if( Level < 1800 )
-        {
-                vib_Level = 1500 ;
-        }
-        else if( Level < 2000 )
-        {
-                vib_Level = 1800 ;
-        }
-        else if( Level < 2800 )
-        {
-                vib_Level = 2000 ;
-        }
-        else if( Level < 3000 )
-        {
-                vib_Level = 2800 ;
-        }
-        else if( Level < 3300 )
-        {
-                vib_Level = 3000 ;
-        }
-        else
-        {
-                vib_Level = 3300 ;
-        }
-        pmic_ldo_enable(MT6331_POWER_LDO_VIBR, KAL_FALSE);
-        pmic_ldo_vol_sel(MT6331_POWER_LDO_VIBR, vib_Level);
-        //pmic_ldo_enable(MT6331_POWER_LDO_VIBR, KAL_TRUE);
-        dev_info(dev, "vib_level_store %d.\n", vib_Level);
-
-        return size;
-}
-
-static DEVICE_ATTR(level, 0664, vib_level_show, vib_level_store);
-
-/* PERI-JC-VIBRATOR_Add_level_file_node-00+] */
-
 
 /******************************************************************************
  * vib_mod_init
@@ -311,17 +418,17 @@ static int vib_mod_init(void)
 {
 	s32 ret;
 
-	printk("MediaTek MTK vibrator driver register, version %s\n", VERSION);
+	pr_info("MediaTek MTK vibrator driver register, version %s\n", VERSION);
 	vibr_power_set();	/* set vibr voltage if needs.  Before MT6320 vibr default voltage=2.8v but in MT6323 vibr default voltage=1.2v */
 	ret = platform_device_register(&vibrator_device);
 	if (ret != 0) {
-		printk("[vibrator]Unable to register vibrator device (%d)\n", ret);
+		pr_info("[vibrator]Unable to register vibrator device (%d)\n", ret);
 		return ret;
 	}
 
 	vibrator_queue = create_singlethread_workqueue(VIB_DEVICE);
 	if (!vibrator_queue) {
-		printk("[vibrator]Unable to create workqueue\n");
+		pr_info("[vibrator]Unable to create workqueue\n");
 		return -ENODATA;
 	}
 	INIT_WORK(&vibrator_work, update_vibrator);
@@ -337,22 +444,16 @@ static int vib_mod_init(void)
 	ret = platform_driver_register(&vibrator_driver);
 
 	if (ret) {
-		printk("[vibrator]Unable to register vibrator driver (%d)\n", ret);
+		pr_info("[vibrator]Unable to register vibrator driver (%d)\n", ret);
 		return ret;
 	}
 
 	ret = device_create_file(mtk_vibrator.dev, &dev_attr_vibr_on);
 	if (ret) {
-		printk("[vibrator]device_create_file vibr_on fail!\n");
+		pr_info("[vibrator]device_create_file vibr_on fail!\n");
 	}
-        /* PERI-JC-VIBRATOR_Add_level_file_node-00+[ */
-        ret = device_create_file(mtk_vibrator.dev, &dev_attr_level);
-        if (ret) {
-                printk("[vibrator]device_create_file vibr_level fail!\n");
-        }
-        /* PERI-JC-VIBRATOR_Add_level_file_node-00+] */
 
-	printk("[vibrator]vib_mod_init Done\n");
+	pr_info("[vibrator]vib_mod_init Done\n");
 
 	return RSUCCESS;
 }
@@ -376,11 +477,11 @@ static int vib_mod_init(void)
 
 static void vib_mod_exit(void)
 {
-	printk("MediaTek MTK vibrator driver unregister, version %s\n", VERSION);
+	pr_info("MediaTek MTK vibrator driver unregister, version %s\n", VERSION);
 	if (vibrator_queue) {
 		destroy_workqueue(vibrator_queue);
 	}
-	printk("[vibrator]vib_mod_exit Done\n");
+	pr_info("[vibrator]vib_mod_exit Done\n");
 }
 module_init(vib_mod_init);
 module_exit(vib_mod_exit);

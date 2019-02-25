@@ -6,6 +6,7 @@
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 #include <linux/aee.h>
+#include <linux/xlog.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -29,7 +30,7 @@ static unsigned int cl_dev_sysrst_state = 0;
 static struct thermal_zone_device *thz_dev;
 
 static struct thermal_cooling_device *cl_dev_sysrst;
-static int mtktsabb_debug_log = 1;
+static int mtktsabb_debug_log = 0;
 static int kernelmode = 0;
 static int g_THERMAL_TRIP[10] = {0,0,0,0,0,0,0,0,0,0};
 static int num_trip=0;
@@ -50,7 +51,7 @@ static char g_bind9[20]={0};
 #define mtktsabb_dprintk(fmt, args...)   \
 do {                                    \
     if (mtktsabb_debug_log) {                \
-        pr_notice("Power/ABB_Thermal" fmt, ##args); \
+        xlog_printk(ANDROID_LOG_INFO, "Power/ABB_Thermal", fmt, ##args); \
     }                                   \
 } while(0)
 
@@ -460,15 +461,15 @@ int mtktsabb_register_cooler(void)
 }
 int mtktsabb_register_thermal(void)
 {
-	mtktsabb_dprintk("[mtktsabb_register_thermal]\n");
+    mtktsabb_dprintk("[mtktsabb_register_thermal] \n");
 
-	/* trips : trip 0~3 */
-	if (NULL == thz_dev) {
-		thz_dev = mtk_thermal_zone_device_register("mtktsabb", num_trip, NULL,
-					&mtktsabb_dev_ops, 0, 0, 0, interval);
-	}
+    /* trips : trip 0~3 */
+    if (NULL == thz_dev) {
+        thz_dev = mtk_thermal_zone_device_register("mtktsabb", num_trip, NULL,
+                                                   &mtktsabb_dev_ops, 0, 0, 0, interval);
+    }
 
-	return 0;
+    return 0;
 }
 
 void mtktsabb_unregister_cooler(void)
@@ -481,12 +482,12 @@ void mtktsabb_unregister_cooler(void)
 
 void mtktsabb_unregister_thermal(void)
 {
-	mtktsabb_dprintk("[mtktsabb_unregister_thermal]\n");
+    mtktsabb_dprintk("[mtktsabb_unregister_thermal] \n");
 
-	if (thz_dev) {
-		mtk_thermal_zone_device_unregister(thz_dev);
-		thz_dev = NULL;
-	}
+    if (thz_dev) {
+        mtk_thermal_zone_device_unregister(thz_dev);
+        thz_dev = NULL;
+    }
 }
 
 static int mtktsabb_open(struct inode *inode, struct file *file)

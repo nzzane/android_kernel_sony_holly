@@ -31,9 +31,7 @@
 
 #include <mach/mt_gpio.h>
 #include <mach/mt_gpio_core.h>
-#ifndef CONFIG_MTK_FPGA
 #include <mach/gpio_const.h>
-#endif
 
 /***********************/
 struct mt_gpio_ops {
@@ -636,7 +634,6 @@ static struct platform_driver gpio_driver = {
 		},
 };
 
-#ifndef CONFIG_MTK_FPGA
 #ifdef CONFIG_OF
 struct device_node *get_gpio_np(void)
 {
@@ -649,7 +646,6 @@ struct device_node *get_gpio_np(void)
 	}
     return np_gpio;
 }
-#endif
 #endif
 
 /*---------------------------------------------------------------------------*/

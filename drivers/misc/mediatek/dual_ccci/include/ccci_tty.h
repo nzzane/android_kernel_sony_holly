@@ -6,21 +6,25 @@
 #define  CCCI_TTY_IPC         2
 #define  CCCI_TTY_ICUSB      3
 
-struct buffer_control_tty_t {
-	unsigned read;
-	unsigned write;
-	unsigned length;
-};
+typedef struct
+{
+    unsigned read;
+    unsigned write;
+    unsigned length;
+} buffer_control_tty_t;
 
-struct shared_mem_tty_t {
-	struct buffer_control_tty_t rx_control;
-	struct buffer_control_tty_t tx_control;
-	unsigned char buffer[0];	/*  [RX | TX] */
-	/* unsigned char            *tx_buffer; */
-};
 
-extern void ccci_reset_buffers(struct shared_mem_tty_t *shared_mem, int size);
+typedef struct
+{
+    buffer_control_tty_t    rx_control;
+    buffer_control_tty_t    tx_control;
+    unsigned char            buffer[0]; // [RX | TX]
+    //unsigned char            *tx_buffer;
+} shared_mem_tty_t;
+
+extern void ccci_reset_buffers(shared_mem_tty_t *shared_mem, int size);
 extern int __init ccci_tty_init(int);
 extern void __exit ccci_tty_exit(int);
 
-#endif				/*  __CCCI_TTY_H__ */
+
+#endif // __CCCI_TTY_H__

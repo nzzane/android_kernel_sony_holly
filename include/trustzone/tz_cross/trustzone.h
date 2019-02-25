@@ -29,19 +29,6 @@ typedef struct {
 } MTEEC_MEM;
 
 /**
- * Additional memory structure for 64/32bit compatiblity.
- */
-typedef struct {
-    uint64_t buffer;
-    uint32_t size;
-} MTEEC64_MEM;
-
-typedef struct {
-    uint32_t buffer;
-    uint32_t size;
-} MTEEC32_MEM;
-
-/**
  * Registed shared memory paramter define
  *
  * @param handle    memory handle.
@@ -76,9 +63,6 @@ typedef struct {
  */
 typedef union {
     MTEEC_MEM mem;
-    MTEEC64_MEM mem64;
-    MTEEC32_MEM mem32;
-
     MTEEC_MEMREF memref;
     MTEEC_VALUE value;
 } MTEEC_PARAM;

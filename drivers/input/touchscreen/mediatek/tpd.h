@@ -10,9 +10,8 @@
 #include <linux/proc_fs.h>
 
 #include <linux/slab.h>
-#if defined(CONFIG_MTK_LEGACY)
+
 #include <mach/mt_gpio.h>
-#endif
 #ifndef CONFIG_ARM64 //MT6795
 #include <mach/mt_reg_base.h>
 #include <mach/irqs.h>
@@ -27,9 +26,7 @@
 #include <generated/autoconf.h>
 #include <linux/kobject.h>
 #include <linux/earlysuspend.h>
-#include <linux/regulator/consumer.h>
 /* #include "tpd_custom.h" */
-#include <vibrator_hal.h>
 
 /* debug macros */
 /* //#define TPD_DEBUG */
@@ -42,6 +39,8 @@
 #else
 #define TPD_DEBUG(arg...)
 #endif
+
+#define CONFIG_DEVINFO_CTP	//add by lizhiye, for tp info
 
 /* register, address, configurations */
 #define TPD_DEVICE            "mtk-tpd"
@@ -71,7 +70,6 @@ extern int tpd_mode_axis;
 extern int tpd_mode_min;
 extern int tpd_mode_max;
 extern int tpd_mode_keypad_tolerance;
-extern int tpd_hw;	/* 0: No detect, 1: synaptics , 2: himax*//* PERI-JC-TOUCH_PING_HW-00+ */
 extern int tpd_em_debounce_time;
 extern int tpd_em_debounce_time0;
 extern int tpd_em_debounce_time1;
@@ -87,30 +85,13 @@ extern int tpd_wb_start[];
 extern int tpd_wb_end[];
 
 struct tpd_device {
-	struct device *tpd_dev;
-	struct regulator *reg;
 	struct input_dev *dev;
 	struct input_dev *kpd;
 	struct timer_list timer;
 	struct tasklet_struct tasklet;
 	int btn_state;
 };
-#if !defined(CONFIG_MTK_LEGACY)
-struct tpd_key_dim_local{
-	int key_x;
-	int key_y;
-	int key_width;
-	int key_height;
-};
-struct tpd_dts_info{
-	int tpd_resolution[2];
-	int use_tpd_button;
-	int tpd_key_num;
-	int tpd_key_local[4];
-	struct tpd_key_dim_local tpd_key_dim_local[4];
-};
-extern struct tpd_dts_info tpd_dts_data;
-#endif
+
 struct tpd_attrs {
 	struct device_attribute **attr;
 	int num;
@@ -128,8 +109,6 @@ struct tpd_filter_t
 {
 	int enable; //0: disable, 1: enable
 	int pixel_density; //XXX pixel/cm
-	int W_W[3][4];//filter custom setting prameters
-	unsigned int VECLOCITY_THRESHOLD[3];//filter speed custom settings
 };
 
 #if 1				/* #ifdef TPD_HAVE_BUTTON */
@@ -155,13 +134,7 @@ extern int tpd_driver_remove(struct tpd_driver_t *tpd_drv);
 void tpd_button_setting(int keycnt, void *keys, void *keys_dim);
 extern int tpd_em_spl_num;
 extern int tpd_em_pressure_threshold;
-#if !defined(CONFIG_MTK_LEGACY)
-#define GTP_RST_PORT    0
-#define GTP_INT_PORT    1
-extern void tpd_get_dts_info(void);
-extern void tpd_gpio_as_int(int pin);
-extern void tpd_gpio_output(int pin, int level);
-#endif
+
 #ifdef TPD_DEBUG_CODE
 #include "tpd_debug.h"
 #endif

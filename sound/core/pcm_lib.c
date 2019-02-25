@@ -32,7 +32,6 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 
-#define DEBUG
 /*
  * fill ring buffer with silence
  * runtime->silence_start: starting pointer to silence area
@@ -376,7 +375,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 					crossed_boundary++;
 				}
 				new_hw_ptr = hw_base + pos;
-				pr_debug("%s, overflow? new_hw_ptr=%ld, hw_base=%ld\n",__FUNCTION__,new_hw_ptr,hw_base);
+				printk("%s, overflow? new_hw_ptr=%ld, hw_base=%ld\n",__FUNCTION__,new_hw_ptr,hw_base);
 				goto __delta;
 			}
 		}
@@ -1861,10 +1860,10 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 	if (substream->timer_running)
 		snd_timer_interrupt(substream->timer, 1);
  _end:
+	kill_fasync(&runtime->fasync, SIGIO, POLL_IN);
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	if (runtime->transfer_ack_end)
 		runtime->transfer_ack_end(substream);
-	kill_fasync(&runtime->fasync, SIGIO, POLL_IN);
 }
 
 EXPORT_SYMBOL(snd_pcm_period_elapsed);

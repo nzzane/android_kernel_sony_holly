@@ -47,7 +47,8 @@ static fm_u32 fm_event_send(struct fm_flag_event *thiz, fm_u32 mask)
 
 static fm_s32 fm_event_wait(struct fm_flag_event *thiz, fm_u32 mask)
 {
-	return wait_event_interruptible(*(wait_queue_head_t *) (thiz->priv), ((thiz->flag & mask) == mask));
+	return wait_event_interruptible(*(wait_queue_head_t *) (thiz->priv),
+					((thiz->flag & mask) == mask));
 }
 
 /**
@@ -64,7 +65,8 @@ static fm_s32 fm_event_wait(struct fm_flag_event *thiz, fm_u32 mask)
  */
 long fm_event_wait_timeout(struct fm_flag_event *thiz, fm_u32 mask, long timeout)
 {
-	return wait_event_timeout(*((wait_queue_head_t *) (thiz->priv)), ((thiz->flag & mask) == mask), timeout * HZ);
+	return wait_event_timeout(*((wait_queue_head_t *) (thiz->priv)),
+				  ((thiz->flag & mask) == mask), timeout * HZ);
 }
 
 static fm_u32 fm_event_clr(struct fm_flag_event *thiz, fm_u32 mask)
@@ -90,14 +92,12 @@ struct fm_flag_event *fm_flag_event_create(const fm_s8 *name)
 	struct fm_flag_event *tmp;
 	wait_queue_head_t *wq;
 
-	tmp = fm_zalloc(sizeof(struct fm_flag_event));
-	if (!tmp) {
+	if (!(tmp = fm_zalloc(sizeof(struct fm_flag_event)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_event) -ENOMEM\n");
 		return NULL;
 	}
 
-	wq = fm_zalloc(sizeof(wait_queue_head_t));
-	if (!wq) {
+	if (!(wq = fm_zalloc(sizeof(wait_queue_head_t)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(wait_queue_head_t) -ENOMEM\n");
 		fm_free(tmp);
 		return NULL;
@@ -165,7 +165,8 @@ static fm_s32 fm_lock_try(struct fm_lock *thiz, fm_s32 retryCnt)
 	}
 
 	sem = (struct semaphore *)thiz->priv;
-	FM_LOG_DBG(MAIN, "%s --->trylock, cnt=%d, pid=%d\n", thiz->name, (int)sem->count, task->pid);
+	FM_LOG_DBG(MAIN, "%s --->trylock, cnt=%d, pid=%d\n", thiz->name, (int)sem->count,
+		   task->pid);
 	return 0;
 }
 
@@ -194,7 +195,8 @@ static fm_s32 fm_lock_unlock(struct fm_lock *thiz)
 	FMR_ASSERT(thiz);
 	FMR_ASSERT(thiz->priv);
 	sem = (struct semaphore *)thiz->priv;
-	FM_LOG_DBG(MAIN, "%s <---unlock, cnt=%d, pid=%d\n", thiz->name, (int)sem->count + 1, task->pid);
+	FM_LOG_DBG(MAIN, "%s <---unlock, cnt=%d, pid=%d\n", thiz->name, (int)sem->count + 1,
+		   task->pid);
 	up((struct semaphore *)thiz->priv);
 	return 0;
 }
@@ -204,14 +206,12 @@ struct fm_lock *fm_lock_create(const fm_s8 *name)
 	struct fm_lock *tmp;
 	struct semaphore *mutex;
 
-	tmp = fm_zalloc(sizeof(struct fm_lock));
-	if (!tmp) {
+	if (!(tmp = fm_zalloc(sizeof(struct fm_lock)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_lock) -ENOMEM\n");
 		return NULL;
 	}
 
-	mutex = fm_zalloc(sizeof(struct semaphore));
-	if (!mutex) {
+	if (!(mutex = fm_zalloc(sizeof(struct semaphore)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(struct semaphore) -ENOMEM\n");
 		fm_free(tmp);
 		return NULL;
@@ -281,14 +281,12 @@ struct fm_lock *fm_spin_lock_create(const fm_s8 *name)
 	struct fm_lock *tmp;
 	spinlock_t *spin_lock;
 
-	tmp = fm_zalloc(sizeof(struct fm_lock));
-	if (!tmp) {
+	if (!(tmp = fm_zalloc(sizeof(struct fm_lock)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_lock) -ENOMEM\n");
 		return NULL;
 	}
 
-	spin_lock = fm_zalloc(sizeof(spinlock_t));
-	if (!spin_lock) {
+	if (!(spin_lock = fm_zalloc(sizeof(spinlock_t)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(spinlock_t) -ENOMEM\n");
 		fm_free(tmp);
 		return NULL;
@@ -304,6 +302,7 @@ struct fm_lock *fm_spin_lock_create(const fm_s8 *name)
 
 	return tmp;
 }
+
 
 fm_s32 fm_spin_lock_get(struct fm_lock *thiz)
 {
@@ -393,14 +392,12 @@ struct fm_timer *fm_timer_create(const fm_s8 *name)
 	struct fm_timer *tmp;
 	struct timer_list *timerlist;
 
-	tmp = fm_zalloc(sizeof(struct fm_timer));
-	if (!tmp) {
+	if (!(tmp = fm_zalloc(sizeof(struct fm_timer)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_timer) -ENOMEM\n");
 		return NULL;
 	}
 
-	timerlist = fm_zalloc(sizeof(struct timer_list));
-	if (!timerlist) {
+	if (!(timerlist = fm_zalloc(sizeof(struct timer_list)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(struct timer_list) -ENOMEM\n");
 		fm_free(tmp);
 		return NULL;
@@ -443,10 +440,12 @@ fm_s32 fm_timer_put(struct fm_timer *thiz)
 	}
 }
 
+
 /*
  * FM work thread mechanism
  */
-static fm_s32 fm_work_init(struct fm_work *thiz, void (*work_func) (unsigned long data), unsigned long data)
+static fm_s32 fm_work_init(struct fm_work *thiz, void (*work_func) (unsigned long data),
+			   unsigned long data)
 {
 	struct work_struct *sys_work = (struct work_struct *)thiz->priv;
 	work_func_t func;
@@ -466,20 +465,19 @@ struct fm_work *fm_work_create(const fm_s8 *name)
 	struct fm_work *my_work;
 	struct work_struct *sys_work;
 
-	my_work = fm_zalloc(sizeof(struct fm_work));
-	if (!my_work) {
+	if (!(my_work = fm_zalloc(sizeof(struct fm_work)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_work) -ENOMEM\n");
 		return NULL;
 	}
 
-	sys_work = fm_zalloc(sizeof(struct work_struct));
-	if (!sys_work) {
+	if (!(sys_work = fm_zalloc(sizeof(struct work_struct)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(struct work_struct) -ENOMEM\n");
 		fm_free(my_work);
 		return NULL;
 	}
 
-	fm_memcpy(my_work->name, name, (strlen(name) > FM_NAME_MAX) ? (FM_NAME_MAX) : (strlen(name)));
+	fm_memcpy(my_work->name, name,
+		  (strlen(name) > FM_NAME_MAX) ? (FM_NAME_MAX) : (strlen(name)));
 	my_work->priv = sys_work;
 	my_work->init = fm_work_init;
 
@@ -509,6 +507,7 @@ fm_s32 fm_work_put(struct fm_work *thiz)
 	}
 }
 
+
 static fm_s32 fm_workthread_add_work(struct fm_workthread *thiz, struct fm_work *work)
 {
 	FMR_ASSERT(thiz);
@@ -523,15 +522,15 @@ struct fm_workthread *fm_workthread_create(const fm_s8 *name)
 	struct fm_workthread *my_thread;
 	struct workqueue_struct *sys_thread;
 
-	my_thread = fm_zalloc(sizeof(struct fm_workthread));
-	if (!my_thread) {
+	if (!(my_thread = fm_zalloc(sizeof(struct fm_workthread)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_workthread) -ENOMEM\n");
 		return NULL;
 	}
 
 	sys_thread = create_singlethread_workqueue(name);
 
-	fm_memcpy(my_thread->name, name, (strlen(name) > FM_NAME_MAX) ? (FM_NAME_MAX) : (strlen(name)));
+	fm_memcpy(my_thread->name, name,
+		  (strlen(name) > FM_NAME_MAX) ? (FM_NAME_MAX) : (strlen(name)));
 	my_thread->priv = sys_thread;
 	my_thread->add_work = fm_workthread_add_work;
 
@@ -561,6 +560,7 @@ fm_s32 fm_workthread_put(struct fm_workthread *thiz)
 	}
 }
 
+
 fm_s32 fm_fifo_in(struct fm_fifo *thiz, void *item)
 {
 	FMR_ASSERT(item);
@@ -582,8 +582,10 @@ fm_s32 fm_fifo_out(struct fm_fifo *thiz, void *item)
 {
 	if (thiz->len > 0) {
 		if (item) {
-			fm_memcpy(item, (thiz->obj.priv + (thiz->item_size * thiz->out)), thiz->item_size);
-			fm_memset((thiz->obj.priv + (thiz->item_size * thiz->out)), 0, thiz->item_size);
+			fm_memcpy(item, (thiz->obj.priv + (thiz->item_size * thiz->out)),
+				  thiz->item_size);
+			fm_memset((thiz->obj.priv + (thiz->item_size * thiz->out)), 0,
+				  thiz->item_size);
 		}
 		thiz->out = (thiz->out + 1) % thiz->size;
 		thiz->len--;
@@ -625,7 +627,8 @@ fm_s32 fm_fifo_reset(struct fm_fifo *thiz)
 	return 0;
 }
 
-struct fm_fifo *fm_fifo_init(struct fm_fifo *fifo, void *buf, const fm_s8 *name, fm_s32 item_size, fm_s32 item_num)
+struct fm_fifo *fm_fifo_init(struct fm_fifo *fifo, void *buf, const fm_s8 *name, fm_s32 item_size,
+			     fm_s32 item_num)
 {
 	fm_memcpy(fifo->obj.name, name, 20);
 	fifo->size = item_num;
@@ -653,14 +656,12 @@ struct fm_fifo *fm_fifo_create(const fm_s8 *name, fm_s32 item_size, fm_s32 item_
 	struct fm_fifo *tmp;
 	void *buf;
 
-	tmp = fm_zalloc(sizeof(struct fm_fifo));
-	if (!tmp) {
+	if (!(tmp = fm_zalloc(sizeof(struct fm_fifo)))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_fifo) -ENOMEM\n");
 		return NULL;
 	}
 
-	buf = fm_zalloc(item_size * item_num);
-	if (!buf) {
+	if (!(buf = fm_zalloc(item_size * item_num))) {
 		WCN_DBG(FM_ALT | MAIN, "fm_zalloc(fm_fifo) -ENOMEM\n");
 		fm_free(tmp);
 		return NULL;
@@ -673,13 +674,14 @@ struct fm_fifo *fm_fifo_create(const fm_s8 *name, fm_s32 item_size, fm_s32 item_
 	return tmp;
 }
 
+
 fm_s32 fm_fifo_release(struct fm_fifo *fifo)
 {
 	if (fifo) {
 		WCN_DBG(FM_NTC | LINK, "%s released\n", fifo->obj.name);
-		if (fifo->obj.priv)
+		if (fifo->obj.priv) {
 			fm_free(fifo->obj.priv);
-
+		}
 		fm_free(fifo);
 	}
 

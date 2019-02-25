@@ -48,6 +48,13 @@
 #include <linux/aee.h>
 
 
+#ifdef CONFIG_LOCAL_WDT
+extern int nr_cpu_ids;
+#else
+#define nr_cpu_ids		4
+#endif
+
+
 /* extern int nr_cpu_ids; */
 /* int enable_clock(int id, unsigned char *name); */
 static int test_case;
@@ -62,19 +69,19 @@ static int data;
 
 static void wdt_dump_reg(void)
 {
-	pr_alert("****************dump wdt reg start*************\n");
-	pr_alert("MTK_WDT_MODE:0x%x\n", DRV_Reg32(MTK_WDT_MODE));
-	pr_alert("MTK_WDT_LENGTH:0x%x\n", DRV_Reg32(MTK_WDT_LENGTH));
-	pr_alert("MTK_WDT_RESTART:0x%x\n", DRV_Reg32(MTK_WDT_RESTART));
-	pr_alert("MTK_WDT_STATUS:0x%x\n", DRV_Reg32(MTK_WDT_STATUS));
-	pr_alert("MTK_WDT_INTERVAL:0x%x\n", DRV_Reg32(MTK_WDT_INTERVAL));
-	pr_alert("MTK_WDT_SWRST:0x%x\n", DRV_Reg32(MTK_WDT_SWRST));
-	pr_alert("MTK_WDT_NONRST_REG:0x%x\n", DRV_Reg32(MTK_WDT_NONRST_REG));
-	pr_alert("MTK_WDT_NONRST_REG2:0x%x\n", DRV_Reg32(MTK_WDT_NONRST_REG2));
-	pr_alert("MTK_WDT_REQ_MODE:0x%x\n", DRV_Reg32(MTK_WDT_REQ_MODE));
-	pr_alert("MTK_WDT_REQ_IRQ_EN:0x%x\n", DRV_Reg32(MTK_WDT_REQ_IRQ_EN));
-	pr_alert("MTK_WDT_DRAMC_CTL:0x%x\n", DRV_Reg32(MTK_WDT_DRAMC_CTL));
-	pr_alert("****************dump wdt reg end*************\n");
+	printk("****************dump wdt reg start*************\n");
+	printk("MTK_WDT_MODE:0x%x\n", DRV_Reg32(MTK_WDT_MODE));
+	printk("MTK_WDT_LENGTH:0x%x\n", DRV_Reg32(MTK_WDT_LENGTH));
+	printk("MTK_WDT_RESTART:0x%x\n", DRV_Reg32(MTK_WDT_RESTART));
+	printk("MTK_WDT_STATUS:0x%x\n", DRV_Reg32(MTK_WDT_STATUS));
+	printk("MTK_WDT_INTERVAL:0x%x\n", DRV_Reg32(MTK_WDT_INTERVAL));
+	printk("MTK_WDT_SWRST:0x%x\n", DRV_Reg32(MTK_WDT_SWRST));
+	printk("MTK_WDT_NONRST_REG:0x%x\n", DRV_Reg32(MTK_WDT_NONRST_REG));
+	printk("MTK_WDT_NONRST_REG2:0x%x\n", DRV_Reg32(MTK_WDT_NONRST_REG2));
+	printk("MTK_WDT_REQ_MODE:0x%x\n", DRV_Reg32(MTK_WDT_REQ_MODE));
+	printk("MTK_WDT_REQ_IRQ_EN:0x%x\n", DRV_Reg32(MTK_WDT_REQ_IRQ_EN));
+	printk("MTK_WDT_DRAMC_CTL:0x%x\n", DRV_Reg32(MTK_WDT_DRAMC_CTL));
+	printk("****************dump wdt reg end*************\n");
 
 }
 
@@ -94,7 +101,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb, unsigned long acti
 		if (hotcpu < nr_cpu_ids) {
 			kthread_bind(wk_tsk[hotcpu], hotcpu);
 			wake_up_process(wk_tsk[hotcpu]);
-			pr_alert("[WDK-test]cpu %d plug on ", hotcpu);
+			printk("[WDK-test]cpu %d plug on ", hotcpu);
 		}
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -102,7 +109,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb, unsigned long acti
 	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		pr_alert("[WDK-test]:start Stop CPU:%d\n", hotcpu);
+		printk("[WDK-test]:start Stop CPU:%d\n", hotcpu);
 
 		break;
 #endif				/* CONFIG_HOTPLUG_CPU */
@@ -131,22 +138,24 @@ static int kwdt_thread_test(void *arg)
 
 	set_current_state(TASK_INTERRUPTIBLE);
 	for (;;) {
-		pr_alert("wd_test debug start, cpu:%d\n", cpu);
+		printk("wd_test debug start, cpu:%d\n", cpu);
 		spin_lock(&wdt_test_lock0);
 		cpu = smp_processor_id();
 		spin_unlock(&wdt_test_lock0);
 
-		if (test_case == (cpu * 10 + 1)) {	/* cpu0 Preempt disale */
-			pr_alert("CPU:%d, Preempt disable\n", cpu);
+		if (test_case == (cpu * 10 + 1))	/* cpu0 Preempt disale */
+		{
+			printk("CPU:%d, Preempt disable\n", cpu);
 			spin_lock(&wdt_test_lock1);
 		}
-		if (test_case == (cpu * 10 + 2)) {	/* cpu0 Preempt&irq disale */
-			pr_alert("CPU:%d, irq & Preempt disable\n", cpu);
+		if (test_case == (cpu * 10 + 2))	/* cpu0 Preempt&irq disale */
+		{
+			printk("CPU:%d, irq & Preempt disable\n", cpu);
 			spin_lock_irqsave(&wdt_test_lock1, flags);
 		}
 		msleep(5 * 1000);	/* 5s */
 		wdt_dump_reg();
-		pr_alert("wd_test debug end, cpu:%d\n", cpu);
+		printk("wd_test debug end, cpu:%d\n", cpu);
 	}
 	return 0;
 }
@@ -160,11 +169,10 @@ static int start_kicker(void)
 
 	for (i = 0; i < nr_cpu_ids; i++) {
 		sprintf(name, "wdtk-test-%d", i);
-		pr_alert("[WDK]:thread name: %s\n", name);
+		printk("[WDK]:thread name: %s\n", name);
 		wk_tsk[i] = kthread_create(kwdt_thread_test, &data, name);
 		if (IS_ERR(wk_tsk[i])) {
 			int ret = PTR_ERR(wk_tsk[i]);
-
 			wk_tsk[i] = NULL;
 			return ret;
 		}

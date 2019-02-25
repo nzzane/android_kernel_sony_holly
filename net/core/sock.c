@@ -423,8 +423,6 @@ static void sock_warn_obsolete_bsdism(const char *name)
 	}
 }
 
-#define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
-
 static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 {
 	if (sk->sk_flags & flags) {
@@ -1409,6 +1407,11 @@ static void __sk_free(struct sock *sk)
 		pr_debug("%s: optmem leakage (%d bytes) detected\n",
 			 __func__, atomic_read(&sk->sk_omem_alloc));
 
+	if (sk->sk_frag.page) {
+		put_page(sk->sk_frag.page);
+		sk->sk_frag.page = NULL;
+	}
+
 	if (sk->sk_peer_cred)
 		put_cred(sk->sk_peer_cred);
 	put_pid(sk->sk_peer_pid);
@@ -1471,6 +1474,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		sock_copy(newsk, sk);
 
+		newsk->sk_prot_creator = sk->sk_prot;
+
 		/* SANITY */
 		get_net(sock_net(newsk));
 		sk_node_init(&newsk->sk_node);
@@ -1521,6 +1526,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		}
 
 		newsk->sk_err	   = 0;
+		newsk->sk_err_soft = 0;
 		newsk->sk_priority = 0;
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -1636,13 +1642,13 @@ EXPORT_SYMBOL(sock_edemux);
 kuid_t sock_i_uid(struct sock *sk)
 {
 	kuid_t uid;
-
+	
 	/*mtk_net: fix kernel bug*/
 	if (!sk) {
 		pr_info("sk == NULL for sock_i_uid\n");
 		return GLOBAL_ROOT_UID;
 	}
-
+	
 	read_lock_bh(&sk->sk_callback_lock);
 	uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : GLOBAL_ROOT_UID;
 	read_unlock_bh(&sk->sk_callback_lock);
@@ -1757,62 +1763,106 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 
 static int sock_dump_info(struct sock *sk)
 {
+    //dump receiver queue 128 bytes
+    //struct sk_buff *skb;
+    //char skbmsg[128];
+    //dump receiver queue 128 bytes end
 
-	if (sk->sk_family == AF_UNIX) {
-		struct unix_sock *u = unix_sk(sk);
-		struct sock *other = NULL;
+		if(sk->sk_family == AF_UNIX)
+		{
+		  struct unix_sock *u = unix_sk(sk);
+		  struct sock *other = NULL;
+		  if( (u->path.dentry !=NULL)&&(u->path.dentry->d_iname!=NULL))
+                  //if( (u->dentry !=NULL)&&(u->dentry->d_iname!=NULL))
+		  {
+		  	  #ifdef CONFIG_MTK_NET_LOGGING  
+		      printk(KERN_INFO "[mtk_net][sock]sockdbg: socket-Name:%s \n",u->path.dentry->d_iname);
+		      #endif
+		  }
+		   else
+		  {
+		  	   #ifdef CONFIG_MTK_NET_LOGGING  
+               printk(KERN_INFO "[mtk_net][sock]sockdbg:socket Name (NULL)\n" );
+               #endif
+		   }
+		   
+		   if(sk->sk_socket && SOCK_INODE(sk->sk_socket))
+		  {
+		   	  	#ifdef CONFIG_MTK_NET_LOGGING  
+		        printk(KERN_INFO "[mtk_net][sock]sockdbg:socket Inode[%lu]\n" ,SOCK_INODE(sk->sk_socket)->i_ino);
+		        #endif
+		   }		 
 
-		if ((u->path.dentry != NULL) && (u->path.dentry->d_iname != NULL)) {
-#ifdef CONFIG_MTK_NET_LOGGING
-			pr_debug("[mtk_net][sock]sockdbg: socket-Name:%s\n",
-				 u->path.dentry->d_iname);
-#endif
-		} else {
-#ifdef CONFIG_MTK_NET_LOGGING
-			pr_debug("[mtk_net][sock]sockdbg:socket Name (NULL)\n");
-#endif
+		    other = unix_sk(sk)->peer ;
+			if (!other)
+			{
+				#ifdef CONFIG_MTK_NET_LOGGING  
+		        printk(KERN_INFO "[mtk_net][sock]sockdbg:peer is (NULL) \n");
+		        #endif
+			 } else{
+			 
+				if ((((struct unix_sock *)other)->path.dentry != NULL)&&(((struct unix_sock *)other)->path.dentry->d_iname != NULL))
+                                //if ((((struct unix_sock *)other)->dentry != NULL)&&(((struct unix_sock *)other)->dentry->d_iname != NULL))
+				{
+					#ifdef CONFIG_MTK_NET_LOGGING  
+		            printk(KERN_INFO "[mtk_net][sock]sockdbg: Peer Name:%s \n",((struct unix_sock *)other)->path.dentry->d_iname);
+		            #endif
+				 }				
+				else
+				{
+					#ifdef CONFIG_MTK_NET_LOGGING  
+                    printk(KERN_INFO "[mtk_net][sock]sockdbg: Peer Name (NULL) \n");
+                    #endif
+				}
+
+				if(other->sk_socket && SOCK_INODE(other->sk_socket))
+				   {
+					#ifdef CONFIG_MTK_NET_LOGGING  
+		            printk(KERN_INFO "[mtk_net][sock]sockdbg: Peer Inode [%lu] \n", SOCK_INODE(other->sk_socket)->i_ino);
+		            #endif
+				    }
+	            #ifdef CONFIG_MTK_NET_LOGGING  
+				printk(KERN_INFO "[mtk_net][sock]sockdbg: Peer Recieve Queue len:%d \n",other->sk_receive_queue.qlen);
+                #endif
+				 //dump receiver queue 128 bytes
+						/* if ((skb = skb_peek_tail(&other->sk_receive_queue)) == NULL) {
+		                        
+		                    printk(KERN_INFO "sockdbg: Peer Recieve Queue is null (warning) \n");
+						 }else{
+						       int i =0 ,len=0;
+		                      if((skb->len !=0) && (skb->data != NULL)){
+
+		                        if(skb->len >= 127){
+									len = 127 ;                          
+								 }else
+								 {
+		                           len = skb->len ;
+								 }
+		                        for (i=0;i<len;i++)
+								  sprintf(skbmsg+i, "%x", skb->data[i]);
+
+								skbmsg[len]= '\0' ;
+								
+		                        printk(KERN_INFO "sockdbg: Peer Recieve Queue dump(%d bytes):%s\n", len, skbmsg);
+												
+		                        
+							  }else{                
+		                        printk(KERN_INFO "sockdbg: Peer Recieve skb error \n");
+							  }*/
+                     //dump receiver queue 128 bytes end      
+
+				 //}
+				//dump receiver queue 128 bytes end				 
+
+			 }
 		}
 
-		if (sk->sk_socket && SOCK_INODE(sk->sk_socket)) {
-#ifdef CONFIG_MTK_NET_LOGGING
-			pr_debug("[mtk_net][sock]sockdbg:socket Inode[%lu]\n",
-				 SOCK_INODE(sk->sk_socket)->i_ino);
-#endif
-		}
+		return 0 ;	  
 
-		other = unix_sk(sk)->peer;
-		if (!other) {
-#ifdef CONFIG_MTK_NET_LOGGING
-			pr_debug("[mtk_net][sock]sockdbg:peer is (NULL)\n");
-#endif
-		} else {
-
-			if ((((struct unix_sock *)other)->path.dentry != NULL)
-			    && (((struct unix_sock *)other)->path.dentry->d_iname != NULL)) {
-#ifdef CONFIG_MTK_NET_LOGGING
-				pr_debug("[mtk_net][sock]sockdbg: Peer Name:%s\n",
-					 ((struct unix_sock *)other)->path.dentry->d_iname);
-#endif
-			} else {
-#ifdef CONFIG_MTK_NET_LOGGING
-				pr_debug("[mtk_net][sock]sockdbg: Peer Name (NULL)\n");
-#endif
-			}
-
-			if (other->sk_socket && SOCK_INODE(other->sk_socket)) {
-#ifdef CONFIG_MTK_NET_LOGGING
-				pr_debug("[mtk_net][sock]sockdbg: Peer Inode [%lu]\n",
-					 SOCK_INODE(other->sk_socket)->i_ino);
-#endif
-			}
-#ifdef CONFIG_MTK_NET_LOGGING
-			pr_debug("[mtk_net][sock]sockdbg: Peer Receive Queue len:%d\n",
-				 other->sk_receive_queue.qlen);
-#endif
-		}
-	}
-	return 0;
+	
 }
+
+
 
 /*
  *	Generic send/receive buffer handlers
@@ -1889,15 +1939,16 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 			goto failure;
 		if (signal_pending(current))
 			goto interrupted;
-	sock_dump_info(sk);
-		#ifdef CONFIG_MTK_NET_LOGGING
-		pr_debug("[mtk_net][sock]sockdbg: wait_for_wmem, timeo =%ld, wmem =%d, snd buf =%d\n",
-timeo, atomic_read(&sk->sk_wmem_alloc), sk->sk_sndbuf);
-	#endif
+
+        sock_dump_info(sk);
+        #ifdef CONFIG_MTK_NET_LOGGING  
+		printk(KERN_INFO "[mtk_net][sock]sockdbg: wait_for_wmem, timeo =%ld, wmem =%d, snd buf =%d \n",
+			 timeo, atomic_read(&sk->sk_wmem_alloc), sk->sk_sndbuf); 
+        #endif
 		timeo = sock_wait_for_wmem(sk, timeo);
-		#ifdef CONFIG_MTK_NET_LOGGING
-		pr_debug("[mtk_net][sock]sockdbg: wait_for_wmem done, header_len=0x%lx, data_len=0x%lx,timeo =%ld\n",
-header_len, data_len, timeo);
+		#ifdef CONFIG_MTK_NET_LOGGING  
+		printk(KERN_INFO "[mtk_net][sock]sockdbg: wait_for_wmem done, header_len=0x%lx, data_len=0x%lx,timeo =%ld \n",
+			 header_len, data_len ,timeo);
 	    #endif
 	}
 
@@ -2130,12 +2181,13 @@ EXPORT_SYMBOL(__sk_mem_schedule);
 /**
  *	__sk_reclaim - reclaim memory_allocated
  *	@sk: socket
+ *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
  */
-void __sk_mem_reclaim(struct sock *sk)
+void __sk_mem_reclaim(struct sock *sk, int amount)
 {
-	sk_memory_allocated_sub(sk,
-				sk->sk_forward_alloc >> SK_MEM_QUANTUM_SHIFT);
-	sk->sk_forward_alloc &= SK_MEM_QUANTUM - 1;
+	amount >>= SK_MEM_QUANTUM_SHIFT;
+	sk_memory_allocated_sub(sk, amount);
+	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
 
 	if (sk_under_memory_pressure(sk) &&
 	    (sk_memory_allocated(sk) < sk_prot_mem_limits(sk, 0)))
@@ -2372,8 +2424,11 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 		sk->sk_type	=	sock->type;
 		sk->sk_wq	=	sock->wq;
 		sock->sk	=	sk;
-	} else
+		sk->sk_uid	=	SOCK_INODE(sock)->i_uid;
+	} else {
 		sk->sk_wq	=	NULL;
+		sk->sk_uid	=	make_kuid(sock_net(sk)->user_ns, 0);
+	}
 
 	spin_lock_init(&sk->sk_dst_lock);
 	rwlock_init(&sk->sk_callback_lock);
@@ -2635,11 +2690,6 @@ void sk_common_release(struct sock *sk)
 	xfrm_sk_free_policy(sk);
 
 	sk_refcnt_debug_release(sk);
-
-	if (sk->sk_frag.page) {
-		put_page(sk->sk_frag.page);
-		sk->sk_frag.page = NULL;
-	}
 
 	sock_put(sk);
 }
